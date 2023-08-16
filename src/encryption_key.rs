@@ -122,7 +122,7 @@ impl EncryptionKey {
         Ok((c1 * c2) % self.nn())
     }
 
-    /// Homomorphic multiplication of scalar (should be unsigned integer) at ciphertext
+    /// Homomorphic multiplication of scalar at ciphertext
     ///
     /// ```text
     /// omul(a, Enc(c)) = Enc(a * c)
