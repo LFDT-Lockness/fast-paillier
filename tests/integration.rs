@@ -147,6 +147,31 @@ fn encryption_with_known_factorization() {
     }
 }
 
+#[test]
+fn factorized_exp() {
+    use utils::FactorizedExp;
+
+    let mut rng = rand_dev::DevRng::new();
+
+    let p = utils::generate_safe_prime(&mut rng, 512);
+    let q = utils::generate_safe_prime(&mut rng, 512);
+
+    let e = Integer::random_bits(1024, &mut utils::external_rand(&mut rng)).into();
+
+    let naive = utils::NaiveExp::build(&e, &p, &q).unwrap();
+    let crt = utils::CrtExp::build(&e, &p, &q).unwrap();
+
+    let nn = (&p * &q).complete().square();
+    for _ in 0..100 {
+        let x = nn
+            .random_below_ref(&mut utils::external_rand(&mut rng))
+            .into();
+        let expected = naive.exp(&x);
+        let actual = crt.exp(&x);
+        assert_eq!(expected, actual);
+    }
+}
+
 /// Takes `x mod n` and maps result to `{-N/2, .., N/2}`
 fn signed_modulo(x: &Integer, n: &Integer) -> Integer {
     let x = x.modulo(n);

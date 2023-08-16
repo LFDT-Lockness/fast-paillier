@@ -77,35 +77,81 @@ impl IntegerExt for Integer {
     }
 }
 
-/// Computes base^n mod (pq)^2
-pub fn factorized_exp(
-    base: &Integer,
-    n_mod_phi_pp: &Integer,
-    n_mod_phi_qq: &Integer,
-    p: &Integer,
-    q: &Integer,
-    beta: &Integer,
-) -> Integer {
-    let qq = (q * q).complete();
-    let pp = (p * p).complete();
+/// Faster exponentiation `x^e mod N^2` when factorization of `N = pq` is known and `e` is fixed
+pub trait FactorizedExp: Sized {
+    /// Precomputes data for exponentiation
+    fn build(e: &Integer, p: &Integer, q: &Integer) -> Option<Self>;
+    /// Returns `x^e mod (p q)^2`
+    fn exp(&self, x: &Integer) -> Integer;
+}
 
-    let x1 = n_mod_phi_pp;
-    let x2 = n_mod_phi_qq;
+/// Naive `x^e mod N` implementation without optimizations
+#[derive(Clone)]
+pub struct NaiveExp {
+    nn: Integer,
+    e: Integer,
+}
 
-    let s1 = base % (p * p).complete();
-    let s2 = base % (q * q).complete();
-
-    let r1 = s1.pow_mod(&x1, &pp).unwrap();
-    let mut r2 = s2.pow_mod(&x2, &qq).unwrap();
-
-    r2 -= &r1;
-    while r2 < 0 {
-        // TODO fuck
-        r2 += &qq;
+impl FactorizedExp for NaiveExp {
+    fn build(e: &Integer, p: &Integer, q: &Integer) -> Option<Self> {
+        if e.cmp0().is_lt() || p.cmp0().is_le() || q.cmp0().is_le() {
+            return None;
+        }
+        let n = (p * q).complete();
+        Some(Self {
+            e: e.clone(),
+            nn: n.square(),
+        })
     }
-    r2 *= beta;
-    r2 %= qq;
-    r2 *= pp;
-    r2 += r1;
-    r2
+
+    fn exp(&self, x: &Integer) -> Integer {
+        x.pow_mod_ref(&self.e, &self.nn)
+            .expect("`e` is checked to be non-negative")
+            .into()
+    }
+}
+
+/// Faster algorithm for exponentiation based on Chinese remainder theorem
+#[derive(Clone)]
+pub struct CrtExp {
+    pp: Integer,
+    qq: Integer,
+    e_mod_phi_pp: Integer,
+    e_mod_phi_qq: Integer,
+    beta: Integer,
+}
+
+impl FactorizedExp for CrtExp {
+    fn build(e: &Integer, p: &Integer, q: &Integer) -> Option<Self> {
+        if e.cmp0().is_lt() || p.cmp0().is_le() || q.cmp0().is_le() {
+            return None;
+        }
+
+        let pp = p.square_ref().complete();
+        let qq = q.square_ref().complete();
+        let e_mod_phi_pp = e % (&pp - p).complete();
+        let e_mod_phi_qq = e % (&qq - q).complete();
+        let beta = (&pp % &qq).complete().invert(&qq).ok()?;
+        Some(Self {
+            e_mod_phi_pp,
+            e_mod_phi_qq,
+            pp,
+            qq,
+            beta,
+        })
+    }
+
+    fn exp(&self, x: &Integer) -> Integer {
+        let s1 = (x % &self.pp).complete();
+        let s2 = (x % &self.qq).complete();
+
+        let r1 = s1
+            .pow_mod(&self.e_mod_phi_pp, &self.pp)
+            .expect("exponent is guaranteed to be non-negative");
+        let r2 = s2
+            .pow_mod(&self.e_mod_phi_qq, &self.qq)
+            .expect("exponent is guaranteed to be non-negative");
+
+        ((r2 - &r1) * &self.beta).modulo(&self.qq) * &self.pp + &r1
+    }
 }

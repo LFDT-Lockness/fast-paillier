@@ -5,10 +5,8 @@ use crate::utils::IntegerExt;
 use crate::{utils, Ciphertext, EncryptionKey, Nonce, Plaintext};
 use crate::{Bug, Error, Reason};
 
-mod faster_encryption;
-
 #[derive(Clone)]
-pub struct DecryptionKey {
+pub struct DecryptionKey<FastExp = utils::CrtExp> {
     ek: EncryptionKey,
     /// `lcm(p, q)`
     lambda: Integer,
@@ -17,17 +15,16 @@ pub struct DecryptionKey {
     /// `L((N + 1)^lambda mod N^2)-1 mod N`
     u: Integer,
 
-    lambda_mod_phi_pp: Integer,
-    lambda_mod_phi_qq: Integer,
-    beta: Integer,
-
     p: Integer,
     q: Integer,
 
-    faster_encryption: faster_encryption::EncryptWithKnownFactorization,
+    /// Calculates `x ^ N mod N^2`. It's used for faster encryption
+    exp_to_n_mod_nn: FastExp,
+    /// Calculates `x ^ lambda mod N^2`. It's used for faster decryption
+    exp_to_lambda_mod_nn: FastExp,
 }
 
-impl DecryptionKey {
+impl<FastExp: utils::FactorizedExp> DecryptionKey<FastExp> {
     /// Generates a paillier key
     ///
     /// Samples two safe 1536-bits primes that meets 128 bits security level
@@ -71,15 +68,8 @@ impl DecryptionKey {
             .invert(ek.n())
             .map_err(|_| Reason::InvalidPQ)?;
 
-        let pp = (&p * &p).complete();
-        let qq = (&q * &q).complete();
-        let lambda_mod_phi_pp = &lambda % (&pp - &p).complete();
-        let lambda_mod_phi_qq = &lambda % (&qq - &q).complete();
-        let beta = (pp % &qq).invert(&qq).unwrap();
-
-        let faster_encryption =
-            faster_encryption::EncryptWithKnownFactorization::new(p.clone(), q.clone())
-                .ok_or(Bug::NewFasterEncrypt)?;
+        let exp_to_n_mod_nn = FastExp::build(ek.n(), &p, &q).ok_or(Reason::BuildFastExp)?;
+        let exp_to_lambda_mod_nn = FastExp::build(&lambda, &p, &q).ok_or(Reason::BuildFastExp)?;
 
         Ok(Self {
             ek,
@@ -88,10 +78,8 @@ impl DecryptionKey {
             u,
             p,
             q,
-            lambda_mod_phi_pp,
-            lambda_mod_phi_qq,
-            beta,
-            faster_encryption,
+            exp_to_n_mod_nn,
+            exp_to_lambda_mod_nn,
         })
     }
 
@@ -102,14 +90,7 @@ impl DecryptionKey {
         }
 
         // a = c^\lambda mod n^2
-        let a = utils::factorized_exp(
-            c,
-            &self.lambda_mod_phi_pp,
-            &self.lambda_mod_phi_qq,
-            &self.p,
-            &self.q,
-            &self.beta,
-        );
+        let a = self.exp_to_lambda_mod_nn.exp(c);
 
         // ell = L(a, N)
         let l = self.ek.l(&a).ok_or(Reason::Decrypt)?;
@@ -124,14 +105,41 @@ impl DecryptionKey {
         }
     }
 
-    #[inline(always)]
+    /// Encrypts a plaintext `x` in `{-N/2, .., N/2}` with `nonce` from `Z*_n`
+    ///
+    /// It's uses the fact that factorization of `N` is known to speed up encryption.
+    ///
+    /// Returns error if inputs are not in specified range
     pub fn encrypt_with(&self, x: &Plaintext, nonce: &Nonce) -> Result<Ciphertext, Error> {
         if !self.ek.in_signed_group(x) || !utils::in_mult_group(nonce, self.n()) {
             return Err(Reason::Encrypt.into());
         }
 
         let x = x.modulo(self.n());
-        Ok(self.faster_encryption.encrypt(&x, nonce))
+
+        // a = (1 + N)^x mod N^2 = (1 + xN) mod N^2
+        let a = (Integer::ONE + x * self.ek.n()) % self.ek.nn();
+        // b = nonce^N mod N^2
+        let b = self.exp_to_n_mod_nn.exp(nonce);
+
+        Ok((a * b) % self.ek.nn())
+    }
+
+    /// Encrypts the plaintext `x` in `{-N/2, .., N_2}`
+    ///
+    /// It's uses the fact that factorization of `N` is known to speed up encryption.
+    ///
+    /// Nonce is sampled randomly using `rng`.
+    ///
+    /// Returns error if plaintext is not in specified range
+    pub fn encrypt_with_random(
+        &self,
+        rng: &mut (impl RngCore + CryptoRng),
+        x: &Plaintext,
+    ) -> Result<(Ciphertext, Nonce), Error> {
+        let nonce = utils::sample_in_mult_group(rng, self.ek.n());
+        let ciphertext = self.encrypt_with(x, &nonce)?;
+        Ok((ciphertext, nonce))
     }
 
     /// Returns a (public) encryption key corresponding to the (secret) decryption key

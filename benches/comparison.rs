@@ -1,3 +1,4 @@
+use fast_paillier::utils;
 use rug::Integer;
 
 /// Safe 1536 bit prime number in hex encoding
@@ -17,13 +18,13 @@ const Q: &str = "9461f6a273f4bdf08ce0b1071253e0688d622d6b714b407200fa709d964034c
                  c364aab061aea672cb6dd86cee08b63a5b3f1fc78f1712e1a333b2552471e5a\
                  d8403f";
 
-fn comparison(c: &mut criterion::Criterion) {
+fn encryption(c: &mut criterion::Criterion) {
     let mut rng = rand_dev::DevRng::new();
 
     let p = Integer::from_str_radix(P, 16).unwrap();
     let q = Integer::from_str_radix(Q, 16).unwrap();
 
-    let dk = fast_paillier::DecryptionKey::from_primes(p, q).unwrap();
+    let dk: fast_paillier::DecryptionKey = fast_paillier::DecryptionKey::from_primes(p, q).unwrap();
     let ek = dk.encryption_key();
 
     let mut group = c.benchmark_group("Encrypt");
@@ -54,5 +55,36 @@ fn comparison(c: &mut criterion::Criterion) {
     });
 }
 
-criterion::criterion_group!(benches, comparison);
+fn decryption(c: &mut criterion::Criterion) {
+    let mut rng = rand_dev::DevRng::new();
+
+    let p = Integer::from_str_radix(P, 16).unwrap();
+    let q = Integer::from_str_radix(Q, 16).unwrap();
+
+    let dk_naive =
+        fast_paillier::DecryptionKey::<utils::NaiveExp>::from_primes(p.clone(), q.clone()).unwrap();
+    let dk_crt = fast_paillier::DecryptionKey::<utils::CrtExp>::from_primes(p, q).unwrap();
+    let ek = dk_naive.encryption_key();
+
+    let mut group = c.benchmark_group("Decrypt");
+
+    let mut generate_inputs = || utils::sample_in_mult_group(&mut rng, ek.nn());
+
+    group.bench_function("Naive Decrypt", |b| {
+        b.iter_batched(
+            &mut generate_inputs,
+            |enc_x| dk_naive.decrypt(&enc_x).unwrap(),
+            criterion::BatchSize::SmallInput,
+        )
+    });
+    group.bench_function("Decrypt with CRT", |b| {
+        b.iter_batched(
+            &mut generate_inputs,
+            |enc_x| dk_crt.decrypt(&enc_x).unwrap(),
+            criterion::BatchSize::SmallInput,
+        )
+    });
+}
+
+criterion::criterion_group!(benches, encryption, decryption);
 criterion::criterion_main!(benches);

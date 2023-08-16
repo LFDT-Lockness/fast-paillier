@@ -27,6 +27,8 @@ enum Reason {
     Decrypt,
     #[error("homorphic operation failed: invalid inputs")]
     Ops,
+    #[error("could not precompute data for faster exponentiation")]
+    BuildFastExp,
     #[error("bug occurred")]
     Bug(#[source] Bug),
 }
@@ -35,8 +37,6 @@ enum Reason {
 enum Bug {
     #[error("pow mod undefined")]
     PowModUndef,
-    #[error("could not construct faster encryption")]
-    NewFasterEncrypt,
 }
 
 impl From<Bug> for Error {
