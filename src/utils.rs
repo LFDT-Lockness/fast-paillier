@@ -76,3 +76,36 @@ impl IntegerExt for Integer {
         }
     }
 }
+
+/// Computes base^n mod (pq)^2
+pub fn factorized_exp(
+    base: &Integer,
+    n_mod_phi_pp: &Integer,
+    n_mod_phi_qq: &Integer,
+    p: &Integer,
+    q: &Integer,
+    beta: &Integer,
+) -> Integer {
+    let qq = (q * q).complete();
+    let pp = (p * p).complete();
+
+    let x1 = n_mod_phi_pp;
+    let x2 = n_mod_phi_qq;
+
+    let s1 = base % (p * p).complete();
+    let s2 = base % (q * q).complete();
+
+    let r1 = s1.pow_mod(&x1, &pp).unwrap();
+    let mut r2 = s2.pow_mod(&x2, &qq).unwrap();
+
+    r2 -= &r1;
+    while r2 < 0 {
+        // TODO fuck
+        r2 += &qq;
+    }
+    r2 *= beta;
+    r2 %= qq;
+    r2 *= pp;
+    r2 += r1;
+    r2
+}

@@ -17,6 +17,10 @@ pub struct DecryptionKey {
     /// `L((N + 1)^lambda mod N^2)-1 mod N`
     u: Integer,
 
+    lambda_mod_phi_pp: Integer,
+    lambda_mod_phi_qq: Integer,
+    beta: Integer,
+
     p: Integer,
     q: Integer,
 
@@ -67,9 +71,16 @@ impl DecryptionKey {
             .invert(ek.n())
             .map_err(|_| Reason::InvalidPQ)?;
 
+        let pp = (&p * &p).complete();
+        let qq = (&q * &q).complete();
+        let lambda_mod_phi_pp = &lambda % (&pp - &p).complete();
+        let lambda_mod_phi_qq = &lambda % (&qq - &q).complete();
+        let beta = (pp % &qq).invert(&qq).unwrap();
+
         let faster_encryption =
             faster_encryption::EncryptWithKnownFactorization::new(p.clone(), q.clone())
                 .ok_or(Bug::NewFasterEncrypt)?;
+
         Ok(Self {
             ek,
             lambda,
@@ -77,6 +88,9 @@ impl DecryptionKey {
             u,
             p,
             q,
+            lambda_mod_phi_pp,
+            lambda_mod_phi_qq,
+            beta,
             faster_encryption,
         })
     }
@@ -88,10 +102,15 @@ impl DecryptionKey {
         }
 
         // a = c^\lambda mod n^2
-        let a: Integer = c
-            .pow_mod_ref(&self.lambda, self.ek.nn())
-            .ok_or(Bug::PowModUndef)?
-            .into();
+        let a = utils::factorized_exp(
+            c,
+            &self.lambda_mod_phi_pp,
+            &self.lambda_mod_phi_qq,
+            &self.p,
+            &self.q,
+            &self.beta,
+        );
+
         // ell = L(a, N)
         let l = self.ek.l(&a).ok_or(Reason::Decrypt)?;
 
