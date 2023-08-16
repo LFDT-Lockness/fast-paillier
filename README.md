@@ -1,0 +1,1 @@
+# Optimized Paillier encryption scheme
