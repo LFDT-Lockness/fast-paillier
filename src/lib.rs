@@ -25,7 +25,7 @@ enum Reason {
     Encrypt,
     #[error("decryption error")]
     Decrypt,
-    #[error("homorphic operation failed: invalid inputs")]
+    #[error("homomorphic operation failed: invalid inputs")]
     Ops,
     #[error("could not precompute data for faster exponentiation")]
     BuildFastExp,

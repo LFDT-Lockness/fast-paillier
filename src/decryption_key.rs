@@ -8,7 +8,7 @@ use crate::{Bug, Error, Reason};
 #[derive(Clone)]
 pub struct DecryptionKey<FastExp = utils::CrtExp> {
     ek: EncryptionKey,
-    /// `lcm(p, q)`
+    /// `lcm(p-1, q-1)`
     lambda: Integer,
     /// `L((N + 1)^lambda mod N^2)-1 mod N`
     u: Integer,
@@ -79,7 +79,7 @@ impl<FastExp: utils::FactorizedExp> DecryptionKey<FastExp> {
         })
     }
 
-    /// Decrypts the ciphertext, returns plaintext in `[-N/2; N_2)`
+    /// Decrypts the ciphertext, returns plaintext in `{-N/2, .., N_2}`
     pub fn decrypt(&self, c: &Ciphertext) -> Result<Plaintext, Error> {
         if !utils::in_mult_group(&c, &self.ek.nn()) {
             return Err(Reason::Decrypt.into());
@@ -103,7 +103,7 @@ impl<FastExp: utils::FactorizedExp> DecryptionKey<FastExp> {
 
     /// Encrypts a plaintext `x` in `{-N/2, .., N/2}` with `nonce` from `Z*_n`
     ///
-    /// It's uses the fact that factorization of `N` is known to speed up encryption.
+    /// It uses the fact that factorization of `N` is known to speed up encryption.
     ///
     /// Returns error if inputs are not in specified range
     pub fn encrypt_with(&self, x: &Plaintext, nonce: &Nonce) -> Result<Ciphertext, Error> {
@@ -111,7 +111,11 @@ impl<FastExp: utils::FactorizedExp> DecryptionKey<FastExp> {
             return Err(Reason::Encrypt.into());
         }
 
-        let x = x.modulo(self.n());
+        let x = if x.cmp0().is_ge() {
+            x.clone()
+        } else {
+            (x + self.n()).complete()
+        };
 
         // a = (1 + N)^x mod N^2 = (1 + xN) mod N^2
         let a = (Integer::ONE + x * self.ek.n()) % self.ek.nn();

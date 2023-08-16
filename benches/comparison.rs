@@ -24,7 +24,8 @@ fn encryption(c: &mut criterion::Criterion) {
     let p = Integer::from_str_radix(P, 16).unwrap();
     let q = Integer::from_str_radix(Q, 16).unwrap();
 
-    let dk: fast_paillier::DecryptionKey = fast_paillier::DecryptionKey::from_primes(p, q).unwrap();
+    let dk: fast_paillier::DecryptionKey =
+        fast_paillier::DecryptionKey::from_primes(p.clone(), q.clone()).unwrap();
     let ek = dk.encryption_key();
 
     let mut group = c.benchmark_group("Encrypt");
@@ -53,6 +54,27 @@ fn encryption(c: &mut criterion::Criterion) {
             criterion::BatchSize::SmallInput,
         )
     });
+
+    let p = convert_integer_to_unknown_order(&p);
+    let q = convert_integer_to_unknown_order(&q);
+    let dk = libpaillier::DecryptionKey::with_primes_unchecked(&p, &q).unwrap();
+    let ek: libpaillier::EncryptionKey = (&dk).into();
+
+    let mut generate_inputs = || {
+        let (x, nonce) = (generate_inputs)();
+        (
+            convert_integer_to_unknown_order(&x).to_bytes(),
+            convert_integer_to_unknown_order(&nonce),
+        )
+    };
+
+    group.bench_function("Encrypt libpaillier", |b| {
+        b.iter_batched(
+            &mut generate_inputs,
+            |(x, nonce)| ek.encrypt(x, Some(nonce)).unwrap(),
+            criterion::BatchSize::SmallInput,
+        )
+    });
 }
 
 fn decryption(c: &mut criterion::Criterion) {
@@ -63,7 +85,8 @@ fn decryption(c: &mut criterion::Criterion) {
 
     let dk_naive =
         fast_paillier::DecryptionKey::<utils::NaiveExp>::from_primes(p.clone(), q.clone()).unwrap();
-    let dk_crt = fast_paillier::DecryptionKey::<utils::CrtExp>::from_primes(p, q).unwrap();
+    let dk_crt =
+        fast_paillier::DecryptionKey::<utils::CrtExp>::from_primes(p.clone(), q.clone()).unwrap();
     let ek = dk_naive.encryption_key();
 
     let mut group = c.benchmark_group("Decrypt");
@@ -84,7 +107,29 @@ fn decryption(c: &mut criterion::Criterion) {
             criterion::BatchSize::SmallInput,
         )
     });
+
+    let p = convert_integer_to_unknown_order(&p);
+    let q = convert_integer_to_unknown_order(&q);
+    let dk = libpaillier::DecryptionKey::with_primes_unchecked(&p, &q).unwrap();
+
+    let mut generate_inputs = || {
+        let enc_x = (generate_inputs)();
+        convert_integer_to_unknown_order(&enc_x)
+    };
+
+    group.bench_function("Decrypt libpaillier", |b| {
+        b.iter_batched(
+            &mut generate_inputs,
+            |enc_x| dk.decrypt(&enc_x).unwrap(),
+            criterion::BatchSize::SmallInput,
+        )
+    });
 }
 
 criterion::criterion_group!(benches, encryption, decryption);
 criterion::criterion_main!(benches);
+
+fn convert_integer_to_unknown_order(x: &Integer) -> libpaillier::unknown_order::BigNumber {
+    let bytes = x.to_digits::<u8>(rug::integer::Order::Msf);
+    libpaillier::unknown_order::BigNumber::from_slice(&bytes)
+}

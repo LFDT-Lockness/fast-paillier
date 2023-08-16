@@ -61,14 +61,15 @@ impl EncryptionKey {
     ///
     /// Returns error if inputs are not in specified range
     pub fn encrypt_with(&self, x: &Plaintext, nonce: &Nonce) -> Result<Ciphertext, Error> {
-        if !self.in_signed_group(x) {
+        if !self.in_signed_group(x) || !utils::in_mult_group(&nonce, self.n()) {
             return Err(Reason::Encrypt.into());
         }
 
-        let x = x.modulo(self.n());
-        if !utils::in_mult_group(&nonce, self.n()) {
-            return Err(Reason::Encrypt.into());
-        }
+        let x = if x.cmp0().is_ge() {
+            x.clone()
+        } else {
+            (x + self.n()).complete()
+        };
 
         // a = (1 + N)^x mod N^2 = (1 + xN) mod N^2
         let a = (Integer::ONE + (&x * self.n()).complete()) % self.nn();
