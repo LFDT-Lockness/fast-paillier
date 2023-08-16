@@ -35,6 +35,8 @@ enum Reason {
 enum Bug {
     #[error("pow mod undefined")]
     PowModUndef,
+    #[error("could not construct faster encryption")]
+    NewFasterEncrypt,
 }
 
 impl From<Bug> for Error {

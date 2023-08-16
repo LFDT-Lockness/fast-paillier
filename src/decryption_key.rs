@@ -1,8 +1,11 @@
 use rand_core::{CryptoRng, RngCore};
 use rug::{Complete, Integer};
 
-use crate::{utils, Ciphertext, EncryptionKey, Plaintext};
+use crate::utils::IntegerExt;
+use crate::{utils, Ciphertext, EncryptionKey, Nonce, Plaintext};
 use crate::{Bug, Error, Reason};
+
+mod faster_encryption;
 
 #[derive(Clone)]
 pub struct DecryptionKey {
@@ -16,6 +19,8 @@ pub struct DecryptionKey {
 
     p: Integer,
     q: Integer,
+
+    faster_encryption: faster_encryption::EncryptWithKnownFactorization,
 }
 
 impl DecryptionKey {
@@ -61,6 +66,10 @@ impl DecryptionKey {
             .ok_or(Reason::InvalidPQ)?
             .invert(ek.n())
             .map_err(|_| Reason::InvalidPQ)?;
+
+        let faster_encryption =
+            faster_encryption::EncryptWithKnownFactorization::new(p.clone(), q.clone())
+                .ok_or(Bug::NewFasterEncrypt)?;
         Ok(Self {
             ek,
             lambda,
@@ -68,6 +77,7 @@ impl DecryptionKey {
             u,
             p,
             q,
+            faster_encryption,
         })
     }
 
@@ -93,6 +103,16 @@ impl DecryptionKey {
         } else {
             Ok(plaintext)
         }
+    }
+
+    #[inline(always)]
+    pub fn encrypt_with(&self, x: &Plaintext, nonce: &Nonce) -> Result<Ciphertext, Error> {
+        if !self.ek.in_signed_group(x) || !utils::in_mult_group(nonce, self.n()) {
+            return Err(Reason::Encrypt.into());
+        }
+
+        let x = x.modulo(self.n());
+        Ok(self.faster_encryption.encrypt(&x, nonce))
     }
 
     /// Returns a (public) encryption key corresponding to the (secret) decryption key

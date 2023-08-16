@@ -9,13 +9,22 @@ use crate::{Bug, Error, Reason};
 pub struct EncryptionKey {
     n: Integer,
     nn: Integer,
+    half_n: Integer,
+    neg_half_n: Integer,
 }
 
 impl EncryptionKey {
     /// Constructs an encryption key from `N`
     pub fn from_n(n: Integer) -> Self {
         let nn = n.clone() * &n;
-        Self { n, nn }
+        let half_n = n.clone() >> 1u32;
+        let neg_half_n = -half_n.clone();
+        Self {
+            n,
+            nn,
+            half_n,
+            neg_half_n,
+        }
     }
 
     /// Returns `N`
@@ -26,6 +35,11 @@ impl EncryptionKey {
     /// Returns `N^2`
     pub fn nn(&self) -> &Integer {
         &self.nn
+    }
+
+    /// Returns `N/2`
+    pub fn half_n(&self) -> &Integer {
+        &self.half_n
     }
 
     /// `l` computes a residuosity class of N^2: (x - 1) / n
@@ -47,18 +61,11 @@ impl EncryptionKey {
     ///
     /// Returns error if inputs are not in specified range
     pub fn encrypt_with(&self, x: &Plaintext, nonce: &Nonce) -> Result<Ciphertext, Error> {
-        let x_twice = Integer::from(x << 1);
-        // Boundary check: 2*x < n
-        if !(x_twice < *self.n()) {
-            return Err(Reason::Encrypt.into());
-        }
-        let neg_x_twice = -x_twice;
-        // Boundary check: -n <= 2*x
-        if !(neg_x_twice <= *self.n()) {
+        if !self.in_signed_group(x) {
             return Err(Reason::Encrypt.into());
         }
 
-        let x = (x % self.n()).complete();
+        let x = x.modulo(self.n());
         if !utils::in_mult_group(&nonce, self.n()) {
             return Err(Reason::Encrypt.into());
         }
@@ -140,5 +147,10 @@ impl EncryptionKey {
     /// ```
     pub fn oneg(&self, ciphertext: &Ciphertext) -> Result<Ciphertext, Error> {
         Ok(ciphertext.invert_ref(self.nn()).ok_or(Reason::Ops)?.into())
+    }
+
+    /// Checks whether `x` is `{-N/2, .., N/2}`
+    pub fn in_signed_group(&self, x: &Integer) -> bool {
+        self.neg_half_n <= *x && *x <= self.half_n
     }
 }

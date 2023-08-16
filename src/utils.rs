@@ -62,6 +62,7 @@ pub fn generate_safe_prime(rng: &mut impl RngCore, bits: u32) -> Integer {
 
 /// Provides functionality that's yet missing in [`rug::Integer`]
 pub trait IntegerExt {
+    /// Returns `self mod module`
     fn modulo(&self, module: &Self) -> Self;
 }
 

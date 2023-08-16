@@ -124,6 +124,29 @@ fn homorphic_ops() {
     }
 }
 
+#[test]
+fn encryption_with_known_factorization() {
+    let mut rng = rand_dev::DevRng::new();
+    let dk = random_key_for_tests(&mut rng);
+    let ek = dk.encryption_key();
+
+    for i in 0..100 {
+        println!("Iteration {i}");
+        let x = ek
+            .n()
+            .clone()
+            .random_below(&mut utils::external_rand(&mut rng));
+        let x = x - ek.half_n();
+
+        let nonce = utils::sample_in_mult_group(&mut rng, ek.n());
+
+        let enc_x1 = ek.encrypt_with(&x, &nonce).unwrap();
+        let enc_x2 = dk.encrypt_with(&x, &nonce).unwrap();
+
+        assert_eq!(enc_x1, enc_x2);
+    }
+}
+
 /// Takes `x mod n` and maps result to `{-N/2, .., N/2}`
 fn signed_modulo(x: &Integer, n: &Integer) -> Integer {
     let x = x.modulo(n);
