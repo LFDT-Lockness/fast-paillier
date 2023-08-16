@@ -10,8 +10,6 @@ pub struct DecryptionKey<FastExp = utils::CrtExp> {
     ek: EncryptionKey,
     /// `lcm(p, q)`
     lambda: Integer,
-    /// `(p - 1)(q - 1)`
-    totient: Integer,
     /// `L((N + 1)^lambda mod N^2)-1 mod N`
     u: Integer,
 
@@ -52,7 +50,6 @@ impl<FastExp: utils::FactorizedExp> DecryptionKey<FastExp> {
         if lambda.cmp0().is_eq() {
             return Err(Reason::InvalidPQ.into());
         }
-        let totient = (&pm1 * &qm1).complete();
 
         // (N+1)^lambda mod N^2
         let t = Integer::from(ek.n() + 1);
@@ -74,7 +71,6 @@ impl<FastExp: utils::FactorizedExp> DecryptionKey<FastExp> {
         Ok(Self {
             ek,
             lambda,
-            totient,
             u,
             p,
             q,
@@ -155,11 +151,6 @@ impl<FastExp: utils::FactorizedExp> DecryptionKey<FastExp> {
     /// The Paillier `lambda`
     pub fn lambda(&self) -> &Integer {
         &self.lambda
-    }
-
-    /// The Paillier `totient`
-    pub fn totient(&self) -> &Integer {
-        &self.totient
     }
 
     /// The Paillier `u`
