@@ -131,7 +131,7 @@ impl FactorizedExp for CrtExp {
         let qq = q.square_ref().complete();
         let e_mod_phi_pp = e % (&pp - p).complete();
         let e_mod_phi_qq = e % (&qq - q).complete();
-        let beta = (&pp % &qq).complete().invert(&qq).ok()?;
+        let beta = pp.invert_ref(&qq)?.into();
         Some(Self {
             e_mod_phi_pp,
             e_mod_phi_qq,
