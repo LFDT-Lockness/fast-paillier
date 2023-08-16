@@ -1,16 +1,15 @@
 use rand_core::{CryptoRng, RngCore};
 use rug::{Complete, Integer};
 
-use crate::utils::IntegerExt;
 use crate::{utils, Ciphertext, EncryptionKey, Nonce, Plaintext};
-use crate::{Bug, Error, Reason};
+use crate::{Error, Reason};
 
 #[derive(Clone)]
 pub struct DecryptionKey<FastExp = utils::CrtExp> {
     ek: EncryptionKey,
     /// `lcm(p-1, q-1)`
     lambda: Integer,
-    /// `L((N + 1)^lambda mod N^2)-1 mod N`
+    /// `lambda^-1 mod N`
     u: Integer,
 
     p: Integer,
@@ -51,19 +50,8 @@ impl<FastExp: utils::FactorizedExp> DecryptionKey<FastExp> {
             return Err(Reason::InvalidPQ.into());
         }
 
-        // (N+1)^lambda mod N^2
-        let t = Integer::from(ek.n() + 1);
-        let tt = t
-            .clone()
-            .pow_mod(&lambda, ek.nn())
-            .map_err(|_| Bug::PowModUndef)?;
-
-        // L((N+1)^lambda mod N^2)^-1 mod N
-        let u = ek
-            .l(&tt)
-            .ok_or(Reason::InvalidPQ)?
-            .invert(ek.n())
-            .map_err(|_| Reason::InvalidPQ)?;
+        // u = lambda^-1 mod N
+        let u = lambda.invert_ref(ek.n()).ok_or(Reason::InvalidPQ)?.into();
 
         let exp_to_n_mod_nn = FastExp::build(ek.n(), &p, &q).ok_or(Reason::BuildFastExp)?;
         let exp_to_lambda_mod_nn = FastExp::build(&lambda, &p, &q).ok_or(Reason::BuildFastExp)?;
