@@ -59,7 +59,7 @@ impl EncryptionKey {
     ///
     /// Returns error if inputs are not in specified range
     pub fn encrypt_with(&self, x: &Plaintext, nonce: &Nonce) -> Result<Ciphertext, Error> {
-        if !self.in_signed_group(x) || !utils::in_mult_group(&nonce, self.n()) {
+        if !self.in_signed_group(x) || !utils::in_mult_group(nonce, self.n()) {
             return Err(Reason::Encrypt.into());
         }
 

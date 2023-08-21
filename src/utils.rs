@@ -37,7 +37,7 @@ pub fn sample_in_mult_group(rng: &mut impl RngCore, n: &Integer) -> Integer {
     let mut x = Integer::new();
     loop {
         x.assign(n.random_below_ref(&mut rng));
-        if in_mult_group(&x, &n) {
+        if in_mult_group(&x, n) {
             return x;
         }
     }
@@ -105,6 +105,8 @@ impl FactorizedExp for NaiveExp {
     }
 
     fn exp(&self, x: &Integer) -> Integer {
+        // We check that `e` is non-negative at the construction in `Self::build`
+        #[allow(clippy::expect_used)]
         x.pow_mod_ref(&self.e, &self.nn)
             .expect("`e` is checked to be non-negative")
             .into()
@@ -145,9 +147,12 @@ impl FactorizedExp for CrtExp {
         let s1 = (x % &self.pp).complete();
         let s2 = (x % &self.qq).complete();
 
+        // `e_mod_phi_pp` and `e_mod_phi_qq` are guaranteed to be non-negative by construction
+        #[allow(clippy::expect_used)]
         let r1 = s1
             .pow_mod(&self.e_mod_phi_pp, &self.pp)
             .expect("exponent is guaranteed to be non-negative");
+        #[allow(clippy::expect_used)]
         let r2 = s2
             .pow_mod(&self.e_mod_phi_qq, &self.qq)
             .expect("exponent is guaranteed to be non-negative");
