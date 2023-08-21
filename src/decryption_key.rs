@@ -10,7 +10,7 @@ pub struct DecryptionKey<FastExp = utils::CrtExp> {
     /// `lcm(p-1, q-1)`
     lambda: Integer,
     /// `lambda^-1 mod N`
-    u: Integer,
+    mu: Integer,
 
     p: Integer,
     q: Integer,
@@ -59,7 +59,7 @@ impl<FastExp: utils::FactorizedExp> DecryptionKey<FastExp> {
         Ok(Self {
             ek,
             lambda,
-            u,
+            mu: u,
             p,
             q,
             exp_to_n_mod_nn,
@@ -80,7 +80,7 @@ impl<FastExp: utils::FactorizedExp> DecryptionKey<FastExp> {
         let l = self.ek.l(&a).ok_or(Reason::Decrypt)?;
 
         // m = lu = L(a)*u = L(c^\lamba*)u mod n
-        let plaintext = (l * &self.u) % self.ek.n();
+        let plaintext = (l * &self.mu) % self.ek.n();
 
         if Integer::from(&plaintext << 1) >= *self.n() {
             Ok(plaintext - self.n())
@@ -145,9 +145,9 @@ impl<FastExp: utils::FactorizedExp> DecryptionKey<FastExp> {
         &self.lambda
     }
 
-    /// The Paillier `u`
-    pub fn u(&self) -> &Integer {
-        &self.u
+    /// The Paillier `mu`
+    pub fn mu(&self) -> &Integer {
+        &self.mu
     }
 
     /// Prime `p`

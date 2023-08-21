@@ -42,9 +42,7 @@ impl EncryptionKey {
         &self.half_n
     }
 
-    /// `l` computes a residuosity class of N^2: (x - 1) / n
-    /// where it is the quotient x - 1 divided by N not modular multiplication of x - 1 times
-    /// the modular multiplication inverse of N. The function comes from Paillier's 99 paper.
+    /// `l(x) = (x-1)/n`
     pub(crate) fn l(&self, x: &Integer) -> Option<Integer> {
         if (x % self.n()).complete() != *Integer::ONE {
             return None;
