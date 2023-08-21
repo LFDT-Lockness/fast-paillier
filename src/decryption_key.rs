@@ -69,7 +69,7 @@ impl<FastExp: utils::FactorizedExp> DecryptionKey<FastExp> {
 
     /// Decrypts the ciphertext, returns plaintext in `{-N/2, .., N_2}`
     pub fn decrypt(&self, c: &Ciphertext) -> Result<Plaintext, Error> {
-        if !utils::in_mult_group(&c, &self.ek.nn()) {
+        if !utils::in_mult_group(c, self.ek.nn()) {
             return Err(Reason::Decrypt.into());
         }
 

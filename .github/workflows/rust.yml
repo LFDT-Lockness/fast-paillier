@@ -1,0 +1,39 @@
+name: Rust
+
+on:
+  pull_request:
+    branches: [ "*" ]
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_NET_GIT_FETCH_WITH_CLI: true
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: Swatinem/rust-cache@v2
+      with:
+        cache-on-failure: "true"
+    - name: Build
+      run: cargo build
+    - name: Run tests
+      run: cargo test
+  check-fmt:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Check formatting
+      run: cargo fmt --all -- --check
+  check-clippy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: Swatinem/rust-cache@v2
+      with:
+        cache-on-failure: "true"
+    - name: Run clippy
+      run: cargo clippy --all --lib -- -D clippy::all -D clippy::unwrap_used -D clippy::expect_used
+    - name: Run clippy tests
+      run: cargo clippy --tests -- -D clippy::all
