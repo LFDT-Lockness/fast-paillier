@@ -51,6 +51,7 @@ pub fn generate_safe_prime(rng: &mut impl RngCore, bits: u32) -> Integer {
     loop {
         x.assign(Integer::random_bits(bits - 1, &mut rng));
         x.set_bit(bits - 2, true);
+        x.next_prime_mut();
         x <<= 1;
         x += 1;
 
