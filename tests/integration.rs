@@ -1,7 +1,4 @@
-use fast_paillier::{
-    utils::{self, IntegerExt},
-    DecryptionKey,
-};
+use fast_paillier::{utils, DecryptionKey};
 use rug::{Complete, Integer};
 
 #[test]
@@ -174,7 +171,7 @@ fn factorized_exp() {
 
 /// Takes `x mod n` and maps result to `{-N/2, .., N/2}`
 fn signed_modulo(x: &Integer, n: &Integer) -> Integer {
-    let x = x.modulo(n);
+    let x = x.modulo_ref(n).complete();
     unsigned_mod_to_signed(x, n)
 }
 

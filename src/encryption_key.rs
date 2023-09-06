@@ -1,7 +1,6 @@
 use rand_core::{CryptoRng, RngCore};
 use rug::{Complete, Integer};
 
-use crate::utils::IntegerExt;
 use crate::{utils, Ciphertext, Nonce, Plaintext};
 use crate::{Bug, Error, Reason};
 
