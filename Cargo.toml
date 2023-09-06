@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rug = { version = "1.20", default-features = false, features = ["integer", "rand"] }
+rug = { version = "1.21", default-features = false, features = ["integer", "rand"] }
 
 rand_core = "0.6"
 
