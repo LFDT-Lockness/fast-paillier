@@ -1,3 +1,5 @@
+mod small_primes;
+
 use rand_core::RngCore;
 use rug::{Assign, Complete, Integer};
 
@@ -45,18 +47,36 @@ pub fn sample_in_mult_group(rng: &mut impl RngCore, n: &Integer) -> Integer {
 
 /// Generates a random safe prime
 pub fn generate_safe_prime(rng: &mut impl RngCore, bits: u32) -> Integer {
+    sieve_generate_safe_primes(rng, bits, 135)
+}
+
+/// Generate a random safe prime with a given sieve parameter. For different bit
+/// sizes, different parameter value will give fastest generation, the higher
+/// bit size - the higher the sieve parameter
+pub fn sieve_generate_safe_primes(rng: &mut impl RngCore, bits: u32, amount: usize) -> Integer {
     use rug::integer::IsPrime;
     let mut rng = external_rand(rng);
     let mut x = Integer::new();
-    loop {
+    let mut mod_result = Integer::new();
+
+    'trial: loop {
         x.assign(Integer::random_bits(bits - 1, &mut rng));
         x.set_bit(bits - 2, true);
-        x.next_prime_mut();
-        x <<= 1;
-        x += 1;
+        x |= 1u32;
+
+        for small_prime in &small_primes::SMALL_PRIMES[0..amount] {
+            mod_result.assign(&x % small_prime);
+            if mod_result == (small_prime - 1) / 2 {
+                continue 'trial;
+            }
+        }
 
         if let IsPrime::Yes | IsPrime::Probably = x.is_probably_prime(25) {
-            return x;
+            x <<= 1;
+            x += 1;
+            if let IsPrime::Yes | IsPrime::Probably = x.is_probably_prime(25) {
+                return x;
+            }
         }
     }
 }
@@ -142,5 +162,19 @@ impl FactorizedExp for CrtExp {
             .expect("exponent is guaranteed to be non-negative");
 
         ((r2 - &r1) * &self.beta).modulo(&self.qq) * &self.pp + &r1
+    }
+}
+
+#[cfg(test)]
+mod test {
+    #[test]
+    fn safe_prime_size() {
+        let mut rng = rand_dev::DevRng::new();
+        for size in [500, 512, 513, 514] {
+            let mut prime = super::generate_safe_prime(&mut rng, size);
+            // rug doesn't have bit length operations, so
+            prime >>= size - 1;
+            assert_eq!(&prime, rug::Integer::ONE);
+        }
     }
 }

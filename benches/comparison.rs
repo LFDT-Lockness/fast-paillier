@@ -126,7 +126,51 @@ fn decryption(c: &mut criterion::Criterion) {
     });
 }
 
-criterion::criterion_group!(benches, encryption, decryption);
+/// Old implementation of safe primes
+pub fn naive_safe_prime(rng: &mut impl rand_core::RngCore, bits: u32) -> Integer {
+    use rug::{integer::IsPrime, Assign};
+    let mut rng = utils::external_rand(rng);
+    let mut x = Integer::new();
+    loop {
+        x.assign(Integer::random_bits(bits - 1, &mut rng));
+        x.set_bit(bits - 2, true);
+        x.next_prime_mut();
+        x <<= 1;
+        x += 1;
+
+        if let IsPrime::Yes | IsPrime::Probably = x.is_probably_prime(25) {
+            return x;
+        }
+    }
+}
+
+fn safe_primes(c: &mut criterion::Criterion) {
+    let rng = rand_dev::DevRng::new();
+
+    let mut group = c.benchmark_group("Safe primes");
+    for (bits, sample_size) in [(512, 200), (1024, 10), (1536, 10)] {
+        let id = |s| format!("{}/{}", bits, s);
+        group.sample_size(sample_size);
+
+        group.bench_function(id("Original"), |b| {
+            b.iter(|| naive_safe_prime(&mut rng.clone(), bits))
+        });
+        group.bench_function(id("Current"), |b| {
+            b.iter(|| utils::generate_safe_prime(&mut rng.clone(), bits))
+        });
+        group.bench_function(id("Trial with sieve of 120 primes"), |b| {
+            b.iter(|| utils::sieve_generate_safe_primes(&mut rng.clone(), bits, 120))
+        });
+        group.bench_function(id("Trial with sieve of 135 primes"), |b| {
+            b.iter(|| utils::sieve_generate_safe_primes(&mut rng.clone(), bits, 135))
+        });
+        group.bench_function(id("Trial with sieve of 150 primes"), |b| {
+            b.iter(|| utils::sieve_generate_safe_primes(&mut rng.clone(), bits, 150))
+        });
+    }
+}
+
+criterion::criterion_group!(benches, encryption, decryption, safe_primes);
 criterion::criterion_main!(benches);
 
 fn convert_integer_to_unknown_order(x: &Integer) -> libpaillier::unknown_order::BigNumber {
