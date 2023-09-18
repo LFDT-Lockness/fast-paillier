@@ -59,9 +59,10 @@ pub fn generate_safe_prime(rng: &mut impl RngCore, bits: u32) -> Integer {
 /// lengths.
 pub fn sieve_generate_safe_primes(rng: &mut impl RngCore, bits: u32, amount: usize) -> Integer {
     use rug::integer::IsPrime;
+
+    let amount = amount.min(small_primes::SMALL_PRIMES.len());
     let mut rng = external_rand(rng);
     let mut x = Integer::new();
-    let mut mod_result = Integer::new();
 
     'trial: loop {
         // generate an odd number of length `bits - 2`
@@ -71,8 +72,8 @@ pub fn sieve_generate_safe_primes(rng: &mut impl RngCore, bits: u32, amount: usi
         x.set_bit(bits - 2, true);
         x |= 1u32;
 
-        for small_prime in &small_primes::SMALL_PRIMES[0..amount] {
-            mod_result.assign(&x % small_prime);
+        for &small_prime in &small_primes::SMALL_PRIMES[0..amount] {
+            let mod_result = x.mod_u(small_prime);
             if mod_result == (small_prime - 1) / 2 {
                 continue 'trial;
             }
