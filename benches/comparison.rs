@@ -170,7 +170,21 @@ fn safe_primes(c: &mut criterion::Criterion) {
     }
 }
 
-criterion::criterion_group!(benches, encryption, decryption, safe_primes);
+fn rng_covertion(c: &mut criterion::Criterion) {
+    let mut rng = rand_dev::DevRng::new();
+
+    let mut group = c.benchmark_group("PRNG convertion");
+
+    group.bench_function("into GMP", |b| {
+        b.iter(|| {
+            let mut gmp_rng = fast_paillier::utils::external_rand(std::hint::black_box(&mut rng));
+            let dyn_rng: &mut dyn rug::rand::MutRandState = &mut gmp_rng;
+            let _ = std::hint::black_box(dyn_rng);
+        })
+    });
+}
+
+criterion::criterion_group!(benches, encryption, decryption, safe_primes, rng_covertion);
 criterion::criterion_main!(benches);
 
 fn convert_integer_to_unknown_order(x: &Integer) -> libpaillier::unknown_order::BigNumber {
