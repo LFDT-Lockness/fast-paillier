@@ -5,6 +5,8 @@ pub mod utils;
 #[cfg(feature = "serde")]
 mod serde;
 
+use std::fmt;
+
 use rand_core::{CryptoRng, RngCore};
 use rug::Integer;
 
@@ -215,5 +217,13 @@ impl AnyEncryptionKey for DecryptionKey {
 
     fn in_signed_group(&self, x: &Integer) -> bool {
         self.encryption_key().in_signed_group(x)
+    }
+}
+
+impl<'a> fmt::Debug for dyn AnyEncryptionKey + 'a {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("PaillierEncKey")
+            .field("N", self.n())
+            .finish_non_exhaustive()
     }
 }
