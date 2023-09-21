@@ -131,8 +131,8 @@ impl<FastExp: utils::FactorizedExp> DecryptionKey<FastExp> {
     }
 
     /// Returns a (public) encryption key corresponding to the (secret) decryption key
-    pub fn encryption_key(&self) -> EncryptionKey {
-        self.ek.clone()
+    pub fn encryption_key(&self) -> &EncryptionKey {
+        &self.ek
     }
 
     /// The Paillier modulus
