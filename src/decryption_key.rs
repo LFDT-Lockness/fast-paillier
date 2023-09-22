@@ -5,7 +5,7 @@ use crate::{utils, Ciphertext, EncryptionKey, Nonce, Plaintext};
 use crate::{Error, Reason};
 
 #[derive(Clone)]
-pub struct DecryptionKey<FastExp = utils::CrtExp> {
+pub struct DecryptionKey {
     ek: EncryptionKey,
     /// `lcm(p-1, q-1)`
     lambda: Integer,
@@ -16,12 +16,12 @@ pub struct DecryptionKey<FastExp = utils::CrtExp> {
     q: Integer,
 
     /// Calculates `x ^ N mod N^2`. It's used for faster encryption
-    exp_to_n_mod_nn: FastExp,
+    exp_to_n_mod_nn: utils::CrtExp,
     /// Calculates `x ^ lambda mod N^2`. It's used for faster decryption
-    exp_to_lambda_mod_nn: FastExp,
+    exp_to_lambda_mod_nn: utils::CrtExp,
 }
 
-impl<FastExp: utils::FactorizedExp> DecryptionKey<FastExp> {
+impl DecryptionKey {
     /// Generates a paillier key
     ///
     /// Samples two safe 1536-bits primes that meets 128 bits security level
@@ -53,8 +53,9 @@ impl<FastExp: utils::FactorizedExp> DecryptionKey<FastExp> {
         // u = lambda^-1 mod N
         let u = lambda.invert_ref(ek.n()).ok_or(Reason::InvalidPQ)?.into();
 
-        let exp_to_n_mod_nn = FastExp::build(ek.n(), &p, &q).ok_or(Reason::BuildFastExp)?;
-        let exp_to_lambda_mod_nn = FastExp::build(&lambda, &p, &q).ok_or(Reason::BuildFastExp)?;
+        let exp_to_n_mod_nn = utils::CrtExp::build(ek.n(), &p, &q).ok_or(Reason::BuildFastExp)?;
+        let exp_to_lambda_mod_nn =
+            utils::CrtExp::build(&lambda, &p, &q).ok_or(Reason::BuildFastExp)?;
 
         Ok(Self {
             ek,

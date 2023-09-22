@@ -83,27 +83,17 @@ fn decryption(c: &mut criterion::Criterion) {
     let p = Integer::from_str_radix(P, 16).unwrap();
     let q = Integer::from_str_radix(Q, 16).unwrap();
 
-    let dk_naive =
-        fast_paillier::DecryptionKey::<utils::NaiveExp>::from_primes(p.clone(), q.clone()).unwrap();
-    let dk_crt =
-        fast_paillier::DecryptionKey::<utils::CrtExp>::from_primes(p.clone(), q.clone()).unwrap();
-    let ek = dk_naive.encryption_key();
+    let dk = fast_paillier::DecryptionKey::from_primes(p.clone(), q.clone()).unwrap();
+    let ek = dk.encryption_key();
 
     let mut group = c.benchmark_group("Decrypt");
 
     let mut generate_inputs = || utils::sample_in_mult_group(&mut rng, ek.nn());
 
-    group.bench_function("Naive Decrypt", |b| {
-        b.iter_batched(
-            &mut generate_inputs,
-            |enc_x| dk_naive.decrypt(&enc_x).unwrap(),
-            criterion::BatchSize::SmallInput,
-        )
-    });
     group.bench_function("Decrypt with CRT", |b| {
         b.iter_batched(
             &mut generate_inputs,
-            |enc_x| dk_crt.decrypt(&enc_x).unwrap(),
+            |enc_x| dk.decrypt(&enc_x).unwrap(),
             criterion::BatchSize::SmallInput,
         )
     });

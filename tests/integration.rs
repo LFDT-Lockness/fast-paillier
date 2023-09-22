@@ -146,24 +146,22 @@ fn encryption_with_known_factorization() {
 
 #[test]
 fn factorized_exp() {
-    use utils::FactorizedExp;
-
     let mut rng = rand_dev::DevRng::new();
 
     let p = utils::generate_safe_prime(&mut rng, 512);
     let q = utils::generate_safe_prime(&mut rng, 512);
+    let n = (&p * &q).complete();
 
     let e = Integer::random_bits(1024, &mut utils::external_rand(&mut rng)).into();
 
-    let naive = utils::NaiveExp::build(&e, &p, &q).unwrap();
     let crt = utils::CrtExp::build(&e, &p, &q).unwrap();
 
     let nn = (&p * &q).complete().square();
     for _ in 0..100 {
-        let x = nn
+        let x: Integer = nn
             .random_below_ref(&mut utils::external_rand(&mut rng))
             .into();
-        let expected = naive.exp(&x);
+        let expected: Integer = x.pow_mod_ref(&e, &n).unwrap().into();
         let actual = crt.exp(&x);
         assert_eq!(expected, actual);
     }

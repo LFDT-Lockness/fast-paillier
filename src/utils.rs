@@ -90,42 +90,6 @@ pub fn sieve_generate_safe_primes(rng: &mut impl RngCore, bits: u32, amount: usi
     }
 }
 
-/// Faster exponentiation `x^e mod N^2` when factorization of `N = pq` is known and `e` is fixed
-pub trait FactorizedExp: Sized {
-    /// Precomputes data for exponentiation
-    fn build(e: &Integer, p: &Integer, q: &Integer) -> Option<Self>;
-    /// Returns `x^e mod (p q)^2`
-    fn exp(&self, x: &Integer) -> Integer;
-}
-
-/// Naive `x^e mod N` implementation without optimizations
-#[derive(Clone)]
-pub struct NaiveExp {
-    nn: Integer,
-    e: Integer,
-}
-
-impl FactorizedExp for NaiveExp {
-    fn build(e: &Integer, p: &Integer, q: &Integer) -> Option<Self> {
-        if e.cmp0().is_lt() || p.cmp0().is_le() || q.cmp0().is_le() {
-            return None;
-        }
-        let n = (p * q).complete();
-        Some(Self {
-            e: e.clone(),
-            nn: n.square(),
-        })
-    }
-
-    fn exp(&self, x: &Integer) -> Integer {
-        // We check that `e` is non-negative at the construction in `Self::build`
-        #[allow(clippy::expect_used)]
-        x.pow_mod_ref(&self.e, &self.nn)
-            .expect("`e` is checked to be non-negative")
-            .into()
-    }
-}
-
 /// Faster algorithm for exponentiation based on Chinese remainder theorem
 #[derive(Clone)]
 pub struct CrtExp {
@@ -136,8 +100,8 @@ pub struct CrtExp {
     beta: Integer,
 }
 
-impl FactorizedExp for CrtExp {
-    fn build(e: &Integer, p: &Integer, q: &Integer) -> Option<Self> {
+impl CrtExp {
+    pub fn build(e: &Integer, p: &Integer, q: &Integer) -> Option<Self> {
         if e.cmp0().is_lt() || p.cmp0().is_le() || q.cmp0().is_le() {
             return None;
         }
@@ -156,7 +120,7 @@ impl FactorizedExp for CrtExp {
         })
     }
 
-    fn exp(&self, x: &Integer) -> Integer {
+    pub fn exp(&self, x: &Integer) -> Integer {
         let s1 = (x % &self.pp).complete();
         let s2 = (x % &self.qq).complete();
 
