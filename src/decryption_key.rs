@@ -139,6 +139,24 @@ impl DecryptionKey {
         Ok((ciphertext, nonce))
     }
 
+    /// Homomorphic multiplication of scalar at ciphertext
+    ///
+    /// It uses the fact that factorization of `N` is known to speed up an operation.
+    ///
+    /// ```text
+    /// omul(a, Enc(c)) = Enc(a * c)
+    /// ```
+    pub fn omul(&self, scalar: &Integer, ciphertext: &Ciphertext) -> Result<Ciphertext, Error> {
+        if !utils::in_mult_group_abs(scalar, self.n())
+            || !utils::in_mult_group(ciphertext, self.ek.nn())
+        {
+            return Err(Reason::Ops.into());
+        }
+
+        let e = self.crt_mod_nn.prepare_exponent(scalar);
+        Ok(self.crt_mod_nn.exp(ciphertext, &e).ok_or(Reason::Ops)?)
+    }
+
     /// Returns a (public) encryption key corresponding to the (secret) decryption key
     pub fn encryption_key(&self) -> &EncryptionKey {
         &self.ek

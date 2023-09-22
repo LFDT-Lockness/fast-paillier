@@ -116,6 +116,42 @@ fn decryption(c: &mut criterion::Criterion) {
     });
 }
 
+fn omul(c: &mut criterion::Criterion) {
+    let mut rng = rand_dev::DevRng::new();
+
+    let p = Integer::from_str_radix(P, 16).unwrap();
+    let q = Integer::from_str_radix(Q, 16).unwrap();
+
+    let dk = fast_paillier::DecryptionKey::from_primes(p.clone(), q.clone()).unwrap();
+    let ek = dk.encryption_key();
+
+    let mut group = c.benchmark_group("OMul");
+
+    let mut generate_inputs = || {
+        let scalar = ek
+            .nn()
+            .random_below_ref(&mut utils::external_rand(&mut rng))
+            .into();
+        let enc_x = utils::sample_in_mult_group(&mut rng, ek.nn());
+        (scalar, enc_x)
+    };
+
+    group.bench_function("with CRT", |b| {
+        b.iter_batched(
+            &mut generate_inputs,
+            |(scalar, enc_x)| dk.omul(&scalar, &enc_x).unwrap(),
+            criterion::BatchSize::SmallInput,
+        )
+    });
+    group.bench_function("without CRT", |b| {
+        b.iter_batched(
+            &mut generate_inputs,
+            |(scalar, enc_x)| ek.omul(&scalar, &enc_x).unwrap(),
+            criterion::BatchSize::SmallInput,
+        )
+    });
+}
+
 /// Old implementation of safe primes
 pub fn naive_safe_prime(rng: &mut impl rand_core::RngCore, bits: u32) -> Integer {
     use rug::{integer::IsPrime, Assign};
@@ -174,7 +210,14 @@ fn rng_covertion(c: &mut criterion::Criterion) {
     });
 }
 
-criterion::criterion_group!(benches, encryption, decryption, safe_primes, rng_covertion);
+criterion::criterion_group!(
+    benches,
+    encryption,
+    decryption,
+    omul,
+    safe_primes,
+    rng_covertion
+);
 criterion::criterion_main!(benches);
 
 fn convert_integer_to_unknown_order(x: &Integer) -> libpaillier::unknown_order::BigNumber {

@@ -208,7 +208,7 @@ impl AnyEncryptionKey for DecryptionKey {
     }
 
     fn omul(&self, scalar: &Integer, ciphertext: &Ciphertext) -> Result<Ciphertext, Error> {
-        self.encryption_key().omul(scalar, ciphertext)
+        self.omul(scalar, ciphertext)
     }
 
     fn oneg(&self, ciphertext: &Ciphertext) -> Result<Ciphertext, Error> {
