@@ -15,10 +15,11 @@ pub struct DecryptionKey {
     p: Integer,
     q: Integer,
 
+    crt_mod_nn: utils::CrtExp,
     /// Calculates `x ^ N mod N^2`. It's used for faster encryption
-    exp_to_n_mod_nn: utils::CrtExp,
+    exp_n: utils::Exponent,
     /// Calculates `x ^ lambda mod N^2`. It's used for faster decryption
-    exp_to_lambda_mod_nn: utils::CrtExp,
+    exp_lambda: utils::Exponent,
 }
 
 impl DecryptionKey {
@@ -53,9 +54,9 @@ impl DecryptionKey {
         // u = lambda^-1 mod N
         let u = lambda.invert_ref(ek.n()).ok_or(Reason::InvalidPQ)?.into();
 
-        let exp_to_n_mod_nn = utils::CrtExp::build(ek.n(), &p, &q).ok_or(Reason::BuildFastExp)?;
-        let exp_to_lambda_mod_nn =
-            utils::CrtExp::build(&lambda, &p, &q).ok_or(Reason::BuildFastExp)?;
+        let crt_mod_nn = utils::CrtExp::build_nn(&p, &q).ok_or(Reason::BuildFastExp)?;
+        let exp_n = crt_mod_nn.prepare_exponent(ek.n());
+        let exp_lambda = crt_mod_nn.prepare_exponent(&lambda);
 
         Ok(Self {
             ek,
@@ -63,8 +64,9 @@ impl DecryptionKey {
             mu: u,
             p,
             q,
-            exp_to_n_mod_nn,
-            exp_to_lambda_mod_nn,
+            crt_mod_nn,
+            exp_n,
+            exp_lambda,
         })
     }
 
@@ -75,7 +77,10 @@ impl DecryptionKey {
         }
 
         // a = c^\lambda mod n^2
-        let a = self.exp_to_lambda_mod_nn.exp(c);
+        let a = self
+            .crt_mod_nn
+            .exp(c, &self.exp_lambda)
+            .ok_or(Reason::Decrypt)?;
 
         // ell = L(a, N)
         let l = self.ek.l(&a).ok_or(Reason::Decrypt)?;
@@ -109,7 +114,10 @@ impl DecryptionKey {
         // a = (1 + N)^x mod N^2 = (1 + xN) mod N^2
         let a = (Integer::ONE + x * self.ek.n()) % self.ek.nn();
         // b = nonce^N mod N^2
-        let b = self.exp_to_n_mod_nn.exp(nonce);
+        let b = self
+            .crt_mod_nn
+            .exp(nonce, &self.exp_n)
+            .ok_or(Reason::Encrypt)?;
 
         Ok((a * b) % self.ek.nn())
     }
