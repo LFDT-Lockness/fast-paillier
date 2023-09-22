@@ -1,7 +1,9 @@
-mod small_primes;
+use std::fmt;
 
 use rand_core::RngCore;
 use rug::{Assign, Complete, Integer};
+
+mod small_primes;
 
 /// Wraps any randomness source that implements [`rand_core::RngCore`] and makes
 /// it compatible with [`rug::rand`].
@@ -197,6 +199,18 @@ impl CrtExp {
         } else {
             Some(result)
         }
+    }
+}
+
+impl fmt::Debug for CrtExp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("CrtExp")
+    }
+}
+
+impl fmt::Debug for Exponent {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("CrtExponent")
     }
 }
 
