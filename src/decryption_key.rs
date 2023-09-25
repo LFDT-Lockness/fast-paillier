@@ -5,7 +5,7 @@ use crate::{utils, Ciphertext, EncryptionKey, Nonce, Plaintext};
 use crate::{Error, Reason};
 
 #[derive(Clone)]
-pub struct DecryptionKey<FastExp = utils::CrtExp> {
+pub struct DecryptionKey {
     ek: EncryptionKey,
     /// `lcm(p-1, q-1)`
     lambda: Integer,
@@ -15,13 +15,14 @@ pub struct DecryptionKey<FastExp = utils::CrtExp> {
     p: Integer,
     q: Integer,
 
+    crt_mod_nn: utils::CrtExp,
     /// Calculates `x ^ N mod N^2`. It's used for faster encryption
-    exp_to_n_mod_nn: FastExp,
+    exp_n: utils::Exponent,
     /// Calculates `x ^ lambda mod N^2`. It's used for faster decryption
-    exp_to_lambda_mod_nn: FastExp,
+    exp_lambda: utils::Exponent,
 }
 
-impl<FastExp: utils::FactorizedExp> DecryptionKey<FastExp> {
+impl DecryptionKey {
     /// Generates a paillier key
     ///
     /// Samples two safe 1536-bits primes that meets 128 bits security level
@@ -53,8 +54,9 @@ impl<FastExp: utils::FactorizedExp> DecryptionKey<FastExp> {
         // u = lambda^-1 mod N
         let u = lambda.invert_ref(ek.n()).ok_or(Reason::InvalidPQ)?.into();
 
-        let exp_to_n_mod_nn = FastExp::build(ek.n(), &p, &q).ok_or(Reason::BuildFastExp)?;
-        let exp_to_lambda_mod_nn = FastExp::build(&lambda, &p, &q).ok_or(Reason::BuildFastExp)?;
+        let crt_mod_nn = utils::CrtExp::build_nn(&p, &q).ok_or(Reason::BuildFastExp)?;
+        let exp_n = crt_mod_nn.prepare_exponent(ek.n());
+        let exp_lambda = crt_mod_nn.prepare_exponent(&lambda);
 
         Ok(Self {
             ek,
@@ -62,8 +64,9 @@ impl<FastExp: utils::FactorizedExp> DecryptionKey<FastExp> {
             mu: u,
             p,
             q,
-            exp_to_n_mod_nn,
-            exp_to_lambda_mod_nn,
+            crt_mod_nn,
+            exp_n,
+            exp_lambda,
         })
     }
 
@@ -74,7 +77,10 @@ impl<FastExp: utils::FactorizedExp> DecryptionKey<FastExp> {
         }
 
         // a = c^\lambda mod n^2
-        let a = self.exp_to_lambda_mod_nn.exp(c);
+        let a = self
+            .crt_mod_nn
+            .exp(c, &self.exp_lambda)
+            .ok_or(Reason::Decrypt)?;
 
         // ell = L(a, N)
         let l = self.ek.l(&a).ok_or(Reason::Decrypt)?;
@@ -108,7 +114,10 @@ impl<FastExp: utils::FactorizedExp> DecryptionKey<FastExp> {
         // a = (1 + N)^x mod N^2 = (1 + xN) mod N^2
         let a = (Integer::ONE + x * self.ek.n()) % self.ek.nn();
         // b = nonce^N mod N^2
-        let b = self.exp_to_n_mod_nn.exp(nonce);
+        let b = self
+            .crt_mod_nn
+            .exp(nonce, &self.exp_n)
+            .ok_or(Reason::Encrypt)?;
 
         Ok((a * b) % self.ek.nn())
     }
@@ -128,6 +137,24 @@ impl<FastExp: utils::FactorizedExp> DecryptionKey<FastExp> {
         let nonce = utils::sample_in_mult_group(rng, self.ek.n());
         let ciphertext = self.encrypt_with(x, &nonce)?;
         Ok((ciphertext, nonce))
+    }
+
+    /// Homomorphic multiplication of scalar at ciphertext
+    ///
+    /// It uses the fact that factorization of `N` is known to speed up an operation.
+    ///
+    /// ```text
+    /// omul(a, Enc(c)) = Enc(a * c)
+    /// ```
+    pub fn omul(&self, scalar: &Integer, ciphertext: &Ciphertext) -> Result<Ciphertext, Error> {
+        if !utils::in_mult_group_abs(scalar, self.n())
+            || !utils::in_mult_group(ciphertext, self.ek.nn())
+        {
+            return Err(Reason::Ops.into());
+        }
+
+        let e = self.crt_mod_nn.prepare_exponent(scalar);
+        Ok(self.crt_mod_nn.exp(ciphertext, &e).ok_or(Reason::Ops)?)
     }
 
     /// Returns a (public) encryption key corresponding to the (secret) decryption key

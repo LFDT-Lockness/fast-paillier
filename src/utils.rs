@@ -1,7 +1,9 @@
-mod small_primes;
+use std::fmt;
 
 use rand_core::RngCore;
 use rug::{Assign, Complete, Integer};
+
+mod small_primes;
 
 /// Wraps any randomness source that implements [`rand_core::RngCore`] and makes
 /// it compatible with [`rug::rand`].
@@ -90,87 +92,125 @@ pub fn sieve_generate_safe_primes(rng: &mut impl RngCore, bits: u32, amount: usi
     }
 }
 
-/// Faster exponentiation `x^e mod N^2` when factorization of `N = pq` is known and `e` is fixed
-pub trait FactorizedExp: Sized {
-    /// Precomputes data for exponentiation
-    fn build(e: &Integer, p: &Integer, q: &Integer) -> Option<Self>;
-    /// Returns `x^e mod (p q)^2`
-    fn exp(&self, x: &Integer) -> Integer;
-}
-
-/// Naive `x^e mod N` implementation without optimizations
-#[derive(Clone)]
-pub struct NaiveExp {
-    nn: Integer,
-    e: Integer,
-}
-
-impl FactorizedExp for NaiveExp {
-    fn build(e: &Integer, p: &Integer, q: &Integer) -> Option<Self> {
-        if e.cmp0().is_lt() || p.cmp0().is_le() || q.cmp0().is_le() {
-            return None;
-        }
-        let n = (p * q).complete();
-        Some(Self {
-            e: e.clone(),
-            nn: n.square(),
-        })
-    }
-
-    fn exp(&self, x: &Integer) -> Integer {
-        // We check that `e` is non-negative at the construction in `Self::build`
-        #[allow(clippy::expect_used)]
-        x.pow_mod_ref(&self.e, &self.nn)
-            .expect("`e` is checked to be non-negative")
-            .into()
-    }
-}
-
-/// Faster algorithm for exponentiation based on Chinese remainder theorem
+/// Faster algorithm for modular exponentiation based on Chinese remainder theorem when modulo factorization is known
+///
+/// `CrtExp` makes exponentation modulo `n` faster when factorization `n = n1 * n2` is known as well as `phi(n1)` and `phi(n2)`
+/// (note that `n1` and `n2` don't need to be primes). In this case, you can [build](Self::build) a `CrtExp` and use provided
+/// [exponentiation algorithm](Self::exp).
 #[derive(Clone)]
 pub struct CrtExp {
-    pp: Integer,
-    qq: Integer,
-    e_mod_phi_pp: Integer,
-    e_mod_phi_qq: Integer,
+    n: Integer,
+    n1: Integer,
+    phi_n1: Integer,
+    n2: Integer,
+    phi_n2: Integer,
     beta: Integer,
 }
 
-impl FactorizedExp for CrtExp {
-    fn build(e: &Integer, p: &Integer, q: &Integer) -> Option<Self> {
-        if e.cmp0().is_lt() || p.cmp0().is_le() || q.cmp0().is_le() {
+/// Exponent for [modular exponentiation](CrtExp::exp) via [`CrtExp`]
+#[derive(Clone)]
+pub struct Exponent {
+    e_mod_phi_pp: Integer,
+    e_mod_phi_qq: Integer,
+    is_negative: bool,
+}
+
+impl CrtExp {
+    /// Builds a `CrtExp` for exponentation modulo `n = n1 * n2`
+    ///
+    /// `phi_n1 = phi(n1)` and `phi_n2 = phi(n2)` need to be known. For instance, if `p` is a prime,
+    /// then `phi(p) = p - 1` and `phi(p^2) = p * (p - 1)`.
+    ///
+    /// [`CrtExp::build_n`] and [`CrtExp::build_nn`] can be used when `n1` and `n2` are primes or
+    /// square of primes.
+    pub fn build(n1: Integer, phi_n1: Integer, n2: Integer, phi_n2: Integer) -> Option<Self> {
+        if n1.cmp0().is_le()
+            || n2.cmp0().is_le()
+            || phi_n1.cmp0().is_le()
+            || phi_n2.cmp0().is_le()
+            || phi_n1 >= n1
+            || phi_n2 >= n2
+        {
             return None;
         }
 
-        let pp = p.square_ref().complete();
-        let qq = q.square_ref().complete();
-        let e_mod_phi_pp = e % (&pp - p).complete();
-        let e_mod_phi_qq = e % (&qq - q).complete();
-        let beta = pp.invert_ref(&qq)?.into();
+        let beta = n1.invert_ref(&n2)?.into();
         Some(Self {
-            e_mod_phi_pp,
-            e_mod_phi_qq,
-            pp,
-            qq,
+            n: (&n1 * &n2).complete(),
+            n1,
+            phi_n1,
+            n2,
+            phi_n2,
             beta,
         })
     }
 
-    fn exp(&self, x: &Integer) -> Integer {
-        let s1 = (x % &self.pp).complete();
-        let s2 = (x % &self.qq).complete();
+    /// Builds a `CrtExp` for exponentiation modulo `n = p * q` where `p`, `q` are primes
+    pub fn build_n(p: &Integer, q: &Integer) -> Option<Self> {
+        let phi_p = (p - 1u8).complete();
+        let phi_q = (q - 1u8).complete();
+        Self::build(p.clone(), phi_p, q.clone(), phi_q)
+    }
+
+    /// Builds a `CrtExp` for exponentiation modulo `nn = (p * q)^2` where `p`, `q` are primes
+    pub fn build_nn(p: &Integer, q: &Integer) -> Option<Self> {
+        let pp = p.square_ref().complete();
+        let qq = q.square_ref().complete();
+        let phi_pp = (&pp - p).complete();
+        let phi_qq = (&qq - q).complete();
+        Self::build(pp, phi_pp, qq, phi_qq)
+    }
+
+    /// Prepares exponent to perform [modular exponentiation](Self::exp)
+    pub fn prepare_exponent(&self, e: &Integer) -> Exponent {
+        let neg_e = (-e).complete();
+        let is_negative = e.cmp0().is_lt();
+        let e = if is_negative { &neg_e } else { e };
+        let e_mod_phi_pp = e.modulo_ref(&self.phi_n1).complete();
+        let e_mod_phi_qq = e.modulo_ref(&self.phi_n2).complete();
+        Exponent {
+            e_mod_phi_pp,
+            e_mod_phi_qq,
+            is_negative,
+        }
+    }
+
+    /// Performs exponentiation modulo `n`
+    ///
+    /// Exponent needs to be output of [`CrtExp::prepare_exponent`]
+    pub fn exp(&self, x: &Integer, e: &Exponent) -> Option<Integer> {
+        let s1 = x.modulo_ref(&self.n1).complete();
+        let s2 = x.modulo_ref(&self.n2).complete();
 
         // `e_mod_phi_pp` and `e_mod_phi_qq` are guaranteed to be non-negative by construction
         #[allow(clippy::expect_used)]
         let r1 = s1
-            .pow_mod(&self.e_mod_phi_pp, &self.pp)
+            .pow_mod(&e.e_mod_phi_pp, &self.n1)
             .expect("exponent is guaranteed to be non-negative");
         #[allow(clippy::expect_used)]
         let r2 = s2
-            .pow_mod(&self.e_mod_phi_qq, &self.qq)
+            .pow_mod(&e.e_mod_phi_qq, &self.n2)
             .expect("exponent is guaranteed to be non-negative");
 
-        ((r2 - &r1) * &self.beta).modulo(&self.qq) * &self.pp + &r1
+        let result = ((r2 - &r1) * &self.beta).modulo(&self.n2) * &self.n1 + &r1;
+
+        if e.is_negative {
+            result.invert(&self.n).ok()
+        } else {
+            Some(result)
+        }
+    }
+}
+
+impl fmt::Debug for CrtExp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("CrtExp")
+    }
+}
+
+impl fmt::Debug for Exponent {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("CrtExponent")
     }
 }
 

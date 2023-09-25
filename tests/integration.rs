@@ -1,4 +1,5 @@
 use fast_paillier::{utils, DecryptionKey};
+use rand::Rng;
 use rug::{Complete, Integer};
 
 #[test]
@@ -145,26 +146,63 @@ fn encryption_with_known_factorization() {
 }
 
 #[test]
-fn factorized_exp() {
-    use utils::FactorizedExp;
-
+fn factorized_exp_mod_n() {
     let mut rng = rand_dev::DevRng::new();
 
     let p = utils::generate_safe_prime(&mut rng, 512);
     let q = utils::generate_safe_prime(&mut rng, 512);
+    let n = (&p * &q).complete();
+    println!("n: {n}");
 
-    let e = Integer::random_bits(1024, &mut utils::external_rand(&mut rng)).into();
+    let crt = utils::CrtExp::build_n(&p, &q).unwrap();
 
-    let naive = utils::NaiveExp::build(&e, &p, &q).unwrap();
-    let crt = utils::CrtExp::build(&e, &p, &q).unwrap();
-
-    let nn = (&p * &q).complete().square();
     for _ in 0..100 {
-        let x = nn
+        let x: Integer = n
             .random_below_ref(&mut utils::external_rand(&mut rng))
             .into();
-        let expected = naive.exp(&x);
-        let actual = crt.exp(&x);
+        let mut e: Integer = Integer::random_bits(1024, &mut utils::external_rand(&mut rng)).into();
+        if rng.gen::<bool>() {
+            e = -e
+        }
+        let crt_e = crt.prepare_exponent(&e);
+
+        println!();
+        println!("x: {x}");
+        println!("e: {e}");
+
+        let expected: Integer = x.pow_mod_ref(&e, &n).unwrap().into();
+        let actual = crt.exp(&x, &crt_e).unwrap();
+        assert_eq!(expected, actual);
+    }
+}
+
+#[test]
+fn factorized_exp_mod_nn() {
+    let mut rng = rand_dev::DevRng::new();
+
+    let p = utils::generate_safe_prime(&mut rng, 512);
+    let q = utils::generate_safe_prime(&mut rng, 512);
+    let nn = (&p * &q).complete().square();
+    println!("nn: {nn}");
+
+    let crt = utils::CrtExp::build_nn(&p, &q).unwrap();
+
+    for _ in 0..100 {
+        let x: Integer = nn
+            .random_below_ref(&mut utils::external_rand(&mut rng))
+            .into();
+        let mut e: Integer = Integer::random_bits(1024, &mut utils::external_rand(&mut rng)).into();
+        if rng.gen::<bool>() {
+            e = -e
+        }
+        let crt_e = crt.prepare_exponent(&e);
+
+        println!();
+        println!("x: {x}");
+        println!("e: {e}");
+
+        let expected: Integer = x.pow_mod_ref(&e, &nn).unwrap().into();
+        let actual = crt.exp(&x, &crt_e).unwrap();
         assert_eq!(expected, actual);
     }
 }
