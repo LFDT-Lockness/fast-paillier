@@ -98,6 +98,7 @@ pub fn sieve_generate_safe_primes(rng: &mut impl RngCore, bits: u32, amount: usi
 /// (note that `n1` and `n2` don't need to be primes). In this case, you can [build](Self::build) a `CrtExp` and use provided
 /// [exponentiation algorithm](Self::exp).
 #[derive(Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct CrtExp {
     n: Integer,
     n1: Integer,
@@ -109,6 +110,7 @@ pub struct CrtExp {
 
 /// Exponent for [modular exponentiation](CrtExp::exp) via [`CrtExp`]
 #[derive(Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Exponent {
     e_mod_phi_pp: Integer,
     e_mod_phi_qq: Integer,
@@ -204,12 +206,16 @@ impl CrtExp {
 
 impl fmt::Debug for CrtExp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // CRT likely contains secret data (such as factorization) so we make sure none of it
+        // is leaked through `fmt::Debug`
         f.write_str("CrtExp")
     }
 }
 
 impl fmt::Debug for Exponent {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Exponent may contain secret data, so we make sure none of it is leaked through
+        // `fmt::Debug`
         f.write_str("CrtExponent")
     }
 }
