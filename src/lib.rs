@@ -1,3 +1,6 @@
+#![doc = include_str!("../README.md")]
+#![forbid(missing_docs)]
+
 mod decryption_key;
 mod encryption_key;
 pub mod utils;
@@ -10,12 +13,16 @@ use std::fmt;
 use rand_core::{CryptoRng, RngCore};
 use rug::Integer;
 
+/// Paillier ciphertext
 pub type Ciphertext = Integer;
+/// Paillier plaintext
 pub type Plaintext = Integer;
+/// Paillier nonce
 pub type Nonce = Integer;
 
 pub use self::{decryption_key::DecryptionKey, encryption_key::EncryptionKey};
 
+/// Error type used in the library
 #[derive(Debug, thiserror::Error)]
 #[error(transparent)]
 pub struct Error(#[from] Reason);

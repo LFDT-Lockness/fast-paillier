@@ -1,3 +1,5 @@
+//! Various utilities
+
 use std::fmt;
 
 use rand_core::RngCore;
