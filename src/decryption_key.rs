@@ -4,6 +4,7 @@ use rug::{Complete, Integer};
 use crate::{utils, Ciphertext, EncryptionKey, Nonce, Plaintext};
 use crate::{Error, Reason};
 
+/// Paillier decryption key
 #[derive(Clone)]
 pub struct DecryptionKey {
     ek: EncryptionKey,
