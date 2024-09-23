@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "Optimized Paillier encryption scheme"
-repository = "https://github.com/dfns/fast-paillier"
+repository = "https://github.com/LFDT-Lockness/fast-paillier"
 categories = ["algorithms", "cryptography"]
 keywords = ["paillier", "public-key", "encryption"]
 
