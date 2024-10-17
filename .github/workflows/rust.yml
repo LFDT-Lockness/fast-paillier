@@ -37,3 +37,9 @@ jobs:
       run: cargo clippy --all --lib -- -D clippy::all -D clippy::unwrap_used -D clippy::expect_used
     - name: Run clippy tests
       run: cargo clippy --tests -- -D clippy::all
+  check-changelog:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Check changelogs
+      run: ./.github/changelog.sh
