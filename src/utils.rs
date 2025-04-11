@@ -25,16 +25,16 @@ pub fn external_rand(rng: &mut impl RngCore) -> rug::rand::ThreadRandState {
     rug::rand::ThreadRandState::new_custom(ExternalRand::wrap_mut(rng))
 }
 
-/// Checks that `x` is in Z*_n
+/// Checks that `x` is in Z<super>*</super><sub>n</sub>
 #[inline(always)]
 pub fn in_mult_group(x: &Integer, n: &Integer) -> bool {
-    x.cmp0().is_ge() && in_mult_group_abs(x, n)
+    x.cmp0().is_gt() && x < n && x.gcd_ref(n).complete() == *Integer::ONE
 }
 
-/// Checks that `abs(x)` is in Z*_n
+/// Checks that `abs(x)` is in Z<super>*</super><sub>n</sub>
 #[inline(always)]
 pub fn in_mult_group_abs(x: &Integer, n: &Integer) -> bool {
-    x.gcd_ref(n).complete() == *Integer::ONE
+    x.cmp_abs(n).is_lt() && x.gcd_ref(n).complete() == *Integer::ONE
 }
 
 /// Samples `x` in Z*_n
@@ -224,6 +224,8 @@ impl fmt::Debug for Exponent {
 
 #[cfg(test)]
 mod test {
+    use rug::Complete;
+
     #[test]
     fn safe_prime_size() {
         let mut rng = rand_dev::DevRng::new();
@@ -232,6 +234,33 @@ mod test {
             // rug doesn't have bit length operations, so
             prime >>= size - 1;
             assert_eq!(&prime, rug::Integer::ONE);
+        }
+    }
+
+    #[test]
+    fn mult_group_check() {
+        use super::{in_mult_group, in_mult_group_abs};
+
+        let n = rug::Integer::from(10);
+
+        let mult_group = [1, 3, 7, 9].map(rug::Integer::from);
+        let not_mult_group = [0, 2, 4, 5, 6, 8, 10].map(rug::Integer::from);
+
+        for x in mult_group {
+            assert!(in_mult_group(&x, &n));
+            assert!(in_mult_group_abs(&x, &n));
+            assert!(in_mult_group_abs(&-x, &n));
+        }
+        for x in not_mult_group {
+            assert!(!in_mult_group(&x, &n));
+            assert!(!in_mult_group_abs(&x, &n));
+            assert!(!in_mult_group_abs(&-x, &n));
+        }
+        for delta in 0..15_u32 {
+            let x = (&n + delta).complete();
+            assert!(!in_mult_group(&x, &n));
+            assert!(!in_mult_group_abs(&x, &n));
+            assert!(!in_mult_group_abs(&-x, &n));
         }
     }
 }
