@@ -227,7 +227,7 @@ impl AnyEncryptionKey for DecryptionKey {
     }
 }
 
-impl<'a> fmt::Debug for dyn AnyEncryptionKey + 'a {
+impl fmt::Debug for dyn AnyEncryptionKey + '_ {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("PaillierEncKey")
             .field("N", self.n())
