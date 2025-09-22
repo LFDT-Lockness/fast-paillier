@@ -3,6 +3,7 @@
 
 mod decryption_key;
 mod encryption_key;
+pub mod backend;
 pub mod utils;
 
 #[cfg(feature = "serde")]
@@ -11,7 +12,7 @@ mod serde;
 use std::fmt;
 
 use rand_core::{CryptoRng, RngCore};
-use rug::Integer;
+use crate::backend::Integer;
 
 /// Paillier ciphertext
 pub type Ciphertext = Integer;
@@ -71,8 +72,7 @@ mod sealed {
 /// and benefit from faster encryption if decryption key is provided.
 ///
 /// ```rust
-/// use fast_paillier::{AnyEncryptionKey, Error};
-/// use rug::Integer;
+/// use fast_paillier::{AnyEncryptionKey, Error, backend::Integer};
 ///
 /// // This function accepts both encryption and decryption key. If decryption key is provided,
 /// // it'll be more efficient

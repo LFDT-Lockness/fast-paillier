@@ -1,6 +1,7 @@
 use rand_core::{CryptoRng, RngCore};
-use rug::{Complete, Integer};
+use rug::Complete;
 
+use crate::backend::Integer;
 use crate::{utils, Ciphertext, Nonce, Plaintext};
 use crate::{Bug, Error, Reason};
 

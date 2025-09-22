@@ -3,13 +3,15 @@
 use std::fmt;
 
 use rand_core::RngCore;
-use rug::{Assign, Complete, Integer};
+use rug::{Assign, Complete};
+
+use crate::backend::Integer;
 
 mod small_primes;
 
 /// Wraps any randomness source that implements [`rand_core::RngCore`] and makes
 /// it compatible with [`rug::rand`].
-pub fn external_rand(rng: &mut impl RngCore) -> rug::rand::ThreadRandState {
+pub fn external_rand(rng: &mut impl RngCore) -> rug::rand::ThreadRandState<'_> {
     use bytemuck::TransparentWrapper;
 
     #[derive(TransparentWrapper)]
