@@ -1,5 +1,9 @@
 #![doc = include_str!("../README.md")]
-#![forbid(missing_docs)]
+#![warn(missing_docs)]
+#![cfg_attr(
+    not(test),
+    warn(clippy::expect_used, clippy::unwrap_used, clippy::panic)
+)]
 
 mod decryption_key;
 mod encryption_key;

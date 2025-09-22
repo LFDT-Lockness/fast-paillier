@@ -3,48 +3,28 @@
 use std::fmt;
 
 use rand_core::RngCore;
-use rug::{Assign, Complete};
 
 use crate::backend::Integer;
 
 mod small_primes;
 
-/// Wraps any randomness source that implements [`rand_core::RngCore`] and makes
-/// it compatible with [`rug::rand`].
-pub fn external_rand(rng: &mut impl RngCore) -> rug::rand::ThreadRandState<'_> {
-    use bytemuck::TransparentWrapper;
-
-    #[derive(TransparentWrapper)]
-    #[repr(transparent)]
-    pub struct ExternalRand<R>(R);
-
-    impl<R: RngCore> rug::rand::ThreadRandGen for ExternalRand<R> {
-        fn gen(&mut self) -> u32 {
-            self.0.next_u32()
-        }
-    }
-
-    rug::rand::ThreadRandState::new_custom(ExternalRand::wrap_mut(rng))
-}
-
 /// Checks that `x` is in Z<super>*</super><sub>n</sub>
 #[inline(always)]
 pub fn in_mult_group(x: &Integer, n: &Integer) -> bool {
-    x.cmp0().is_gt() && x < n && x.gcd_ref(n).complete() == *Integer::ONE
+    x.cmp0().is_gt() && x < n && x.gcd_ref(n).is_one()
 }
 
 /// Checks that `abs(x)` is in Z<super>*</super><sub>n</sub>
 #[inline(always)]
 pub fn in_mult_group_abs(x: &Integer, n: &Integer) -> bool {
-    x.cmp_abs(n).is_lt() && x.gcd_ref(n).complete() == *Integer::ONE
+    x.cmp_abs(n).is_lt() && x.gcd_ref(n).is_one()
 }
 
 /// Samples `x` in Z*_n
 pub fn sample_in_mult_group(rng: &mut impl RngCore, n: &Integer) -> Integer {
-    let mut rng = external_rand(rng);
-    let mut x = Integer::new();
+    let mut x = Integer::zero();
     loop {
-        x.assign(n.random_below_ref(&mut rng));
+        x.assign_random_below(n, rng);
         if in_mult_group(&x, n) {
             return x;
         }
@@ -64,15 +44,14 @@ pub fn generate_safe_prime(rng: &mut impl RngCore, bits: u32) -> Integer {
 /// [`generate_safe_prime`] is indistinguishable from optimal for 500-1700 bit
 /// lengths.
 pub fn sieve_generate_safe_primes(rng: &mut impl RngCore, bits: u32, amount: usize) -> Integer {
-    use rug::integer::IsPrime;
+    use crate::backend::IsPrime;
 
     let amount = amount.min(small_primes::SMALL_PRIMES.len());
-    let mut rng = external_rand(rng);
-    let mut x = Integer::new();
+    let mut x = Integer::zero();
 
     'trial: loop {
         // generate an odd number of length `bits - 2`
-        x.assign(Integer::random_bits(bits - 1, &mut rng));
+        x.assign_random_bits(bits - 1, rng);
         // `random_bits` is guaranteed to not set `bits-1`-th bit, but not
         // guaranteed to set the `bits-2`-th
         x.set_bit(bits - 2, true);
@@ -140,9 +119,9 @@ impl CrtExp {
             return None;
         }
 
-        let beta = n1.invert_ref(&n2)?.into();
+        let beta = n1.invert_ref(&n2)?;
         Some(Self {
-            n: (&n1 * &n2).complete(),
+            n: &n1 * &n2,
             n1,
             phi_n1,
             n2,
@@ -153,27 +132,27 @@ impl CrtExp {
 
     /// Builds a `CrtExp` for exponentiation modulo `n = p * q` where `p`, `q` are primes
     pub fn build_n(p: &Integer, q: &Integer) -> Option<Self> {
-        let phi_p = (p - 1u8).complete();
-        let phi_q = (q - 1u8).complete();
+        let phi_p = p - 1u8;
+        let phi_q = q - 1u8;
         Self::build(p.clone(), phi_p, q.clone(), phi_q)
     }
 
     /// Builds a `CrtExp` for exponentiation modulo `nn = (p * q)^2` where `p`, `q` are primes
     pub fn build_nn(p: &Integer, q: &Integer) -> Option<Self> {
-        let pp = p.square_ref().complete();
-        let qq = q.square_ref().complete();
-        let phi_pp = (&pp - p).complete();
-        let phi_qq = (&qq - q).complete();
+        let pp = p.square_ref();
+        let qq = q.square_ref();
+        let phi_pp = &pp - p;
+        let phi_qq = &qq - q;
         Self::build(pp, phi_pp, qq, phi_qq)
     }
 
     /// Prepares exponent to perform [modular exponentiation](Self::exp)
     pub fn prepare_exponent(&self, e: &Integer) -> Exponent {
-        let neg_e = (-e).complete();
+        let neg_e = -e;
         let is_negative = e.cmp0().is_lt();
         let e = if is_negative { &neg_e } else { e };
-        let e_mod_phi_pp = e.modulo_ref(&self.phi_n1).complete();
-        let e_mod_phi_qq = e.modulo_ref(&self.phi_n2).complete();
+        let e_mod_phi_pp = e.modulo_ref(&self.phi_n1);
+        let e_mod_phi_qq = e.modulo_ref(&self.phi_n2);
         Exponent {
             e_mod_phi_pp,
             e_mod_phi_qq,
@@ -185,8 +164,8 @@ impl CrtExp {
     ///
     /// Exponent needs to be output of [`CrtExp::prepare_exponent`]
     pub fn exp(&self, x: &Integer, e: &Exponent) -> Option<Integer> {
-        let s1 = x.modulo_ref(&self.n1).complete();
-        let s2 = x.modulo_ref(&self.n2).complete();
+        let s1 = x.modulo_ref(&self.n1);
+        let s2 = x.modulo_ref(&self.n2);
 
         // `e_mod_phi_pp` and `e_mod_phi_qq` are guaranteed to be non-negative by construction
         #[allow(clippy::expect_used)]
@@ -226,7 +205,7 @@ impl fmt::Debug for Exponent {
 
 #[cfg(test)]
 mod test {
-    use rug::Complete;
+    use crate::backend::Integer;
 
     #[test]
     fn safe_prime_size() {
@@ -235,7 +214,7 @@ mod test {
             let mut prime = super::generate_safe_prime(&mut rng, size);
             // rug doesn't have bit length operations, so
             prime >>= size - 1;
-            assert_eq!(&prime, rug::Integer::ONE);
+            assert_eq!(prime, Integer::one());
         }
     }
 
@@ -243,10 +222,10 @@ mod test {
     fn mult_group_check() {
         use super::{in_mult_group, in_mult_group_abs};
 
-        let n = rug::Integer::from(10);
+        let n = Integer::from(10);
 
-        let mult_group = [1, 3, 7, 9].map(rug::Integer::from);
-        let not_mult_group = [0, 2, 4, 5, 6, 8, 10].map(rug::Integer::from);
+        let mult_group = [1, 3, 7, 9].map(Integer::from);
+        let not_mult_group = [0, 2, 4, 5, 6, 8, 10].map(Integer::from);
 
         for x in mult_group {
             assert!(in_mult_group(&x, &n));
@@ -259,7 +238,7 @@ mod test {
             assert!(!in_mult_group_abs(&-x, &n));
         }
         for delta in 0..15_u32 {
-            let x = (&n + delta).complete();
+            let x = &n + delta;
             assert!(!in_mult_group(&x, &n));
             assert!(!in_mult_group_abs(&x, &n));
             assert!(!in_mult_group_abs(&-x, &n));
