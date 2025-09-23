@@ -188,7 +188,7 @@ impl DecryptionKey {
     }
 
     /// Bits length of smaller prime (`p` or `q`)
-    pub fn bits_length(&self) -> u32 {
+    pub fn bits_length(&self) -> u64 {
         self.p.significant_bits().min(self.q.significant_bits())
     }
 }

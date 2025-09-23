@@ -75,7 +75,7 @@ impl EncryptionKey {
         let b = nonce
             .clone()
             .pow_mod(self.n(), self.nn())
-            .map_err(|_| Bug::PowModUndef)?;
+            .ok_or(Bug::PowModUndef)?;
 
         let c = (a * b).modulo(self.nn());
         Ok(c)

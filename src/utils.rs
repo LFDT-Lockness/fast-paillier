@@ -180,7 +180,7 @@ impl CrtExp {
         let result = ((r2 - &r1) * &self.beta).modulo(&self.n2) * &self.n1 + &r1;
 
         if e.is_negative {
-            result.invert(&self.n).ok()
+            result.invert(&self.n)
         } else {
             Some(result)
         }
@@ -214,6 +214,7 @@ mod test {
             let mut prime = super::generate_safe_prime(&mut rng, size);
             // rug doesn't have bit length operations, so
             prime >>= size - 1;
+            assert_eq!(prime.significant_bits(), 1);
             assert_eq!(prime, Integer::one());
         }
     }
