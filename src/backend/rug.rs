@@ -4,7 +4,6 @@ use super::IsPrime;
 
 /// Big integer type
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Integer(rug::Integer);
 
 ///// Add /////
@@ -479,7 +478,7 @@ impl Integer {
 
 /// Wraps any randomness source that implements [`rand_core::RngCore`] and makes
 /// it compatible with [`rug::rand`].
-fn external_rand(rng: &mut impl rand_core::RngCore) -> rug::rand::ThreadRandState<'_> {
+pub(crate) fn external_rand(rng: &mut impl rand_core::RngCore) -> rug::rand::ThreadRandState<'_> {
     use bytemuck::TransparentWrapper;
 
     #[derive(TransparentWrapper)]

@@ -5,7 +5,6 @@ use num_traits::Signed as _;
 
 /// Big integer type
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Integer(num_bigint::BigInt);
 
 ///// Add /////
