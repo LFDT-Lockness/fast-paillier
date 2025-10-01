@@ -443,6 +443,19 @@ impl Integer {
         }
     }
 
+    pub fn generate_prime(rng: &mut impl rand_core::RngCore, bit_size: u32) -> Self {
+        let mut x = Integer::zero();
+        for _ in 0..4096 {
+            x.assign_random_bits(bit_size, rng);
+            x.set_bit(bit_size - 1, true);
+            x |= 1u32;
+            if let IsPrime::Yes | IsPrime::Probably = x.is_probably_prime(25) {
+                return x;
+            }
+        }
+        panic!("Defective RNG: didn't find a prime number in 4096 attempts");
+    }
+
     pub fn next_prime_mut(&mut self) {
         self.0.next_prime_mut()
     }

@@ -330,6 +330,10 @@ impl Integer {
         num_traits::One::is_one(&self.0)
     }
 
+    pub fn is_even(&self) -> bool {
+        self.0.is_even()
+    }
+
     pub(crate) fn cmp_abs(&self, other: &Self) -> std::cmp::Ordering {
         self.0.magnitude().cmp(other.0.magnitude())
     }
@@ -361,6 +365,10 @@ impl Integer {
         } else {
             Some(Integer(self.0.modpow(&exponent.0, &modulo.0)))
         }
+    }
+    pub fn u_pow_u(base: u32, exponent: u32) -> Self {
+        let base = num_bigint::BigInt::from(base);
+        Integer(base.pow(exponent))
     }
 
     pub fn square(self) -> Self {
@@ -423,7 +431,8 @@ impl Integer {
     }
     pub fn random_bits(bits: u32, rng: &mut impl rand_core::RngCore) -> Self {
         let dist = num_bigint::RandomBits::new(bits.into());
-        Integer(rand::distributions::Distribution::sample(&dist, rng))
+        let uint = rand::distributions::Distribution::sample(&dist, rng);
+        Integer(num_bigint::BigInt::from_biguint(num_bigint::Sign::Plus, uint))
     }
 
     pub(crate) fn assign_random_below(&mut self, modulo: &Self, rng: &mut impl rand_core::RngCore) {
@@ -435,20 +444,27 @@ impl Integer {
     }
 
     // TODO reps is unused here, need to unify with rug
-    pub(crate) fn is_probably_prime(&self, _reps: u32) -> IsPrime {
-        // There's not way to get a view of int as uint, so we have to clone
-        let Some(uself) = self.0.to_biguint() else {
-            return IsPrime::No;
-        };
-        if glass_pumpkin::prime::check(&uself) {
+    pub fn is_probably_prime(&self, _reps: u32) -> IsPrime {
+        if self.cmp0().is_le() {
+            IsPrime::No
+        } else if glass_pumpkin::prime::check(self.0.magnitude()) {
             IsPrime::Yes
         } else {
             IsPrime::No
         }
     }
 
-    pub fn next_prime_mut(&mut self) {
-        todo!()
+    pub fn generate_prime(rng: &mut impl rand_core::RngCore, bit_size: u32) -> Self {
+        let mut x = Integer::zero();
+        for _ in 0..4096 {
+            x.assign_random_bits(bit_size, rng);
+            x.set_bit(bit_size - 1, true);
+            x |= 1u32;
+            if glass_pumpkin::prime::check_with(x.0.magnitude(), rng) {
+                return x;
+            }
+        }
+        panic!("Defective RNG: didn't find a prime number in 4096 attempts");
     }
 
     /// Compute jacobi symbol of a over n
@@ -614,7 +630,6 @@ mod test {
                 b = -b;
             }
             b.set_bit(0, true);
-            eprintln!("a = {a}, b = {b}");
             let j = a.jacobi(&b);
 
             let a_ = RugInteger::from_bytes_msf(&a.to_bytes_msf());
