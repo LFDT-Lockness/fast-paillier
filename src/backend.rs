@@ -29,7 +29,7 @@ mod serialize {
     /// The radix is always 16. We keep our format compatible
     #[derive(serde::Serialize, serde::Deserialize)]
     struct DictFormat<'a> {
-        radix: usize,
+        radix: u16,
         value: std::borrow::Cow<'a, str>,
     }
 
@@ -38,8 +38,7 @@ mod serialize {
         where
             S: serde::Serializer,
         {
-            let bytes = self.to_bytes_msf();
-            let value = hex::encode(bytes).into();
+            let value = self.to_str_radix(16).into();
             let dict = DictFormat { radix: 16, value };
             dict.serialize(serializer)
         }
@@ -52,37 +51,8 @@ mod serialize {
         {
             let dict = DictFormat::deserialize(deserializer)?;
 
-            if dict.radix != 16 {
-                return Err(serde::de::Error::custom(format!(
-                    "unsupported radix: {}, only radix 16 is supported",
-                    dict.radix
-                )));
-            }
-
-            let value_ascii = dict.value.as_bytes();
-            let positive = value_ascii[0] != b'-';
-            let value_hex = if positive { value_ascii } else {&value_ascii[1..]};
-
-            let bytes = if value_hex.len() % 2 == 1 {
-                // hex crate can't handle odd length, so we decode the first
-                // byte by hand
-                let len = value_hex.len() / 2 + 1;
-                let mut buf = Vec::with_capacity(len);
-                buf.resize(len, 0);
-
-                let first_byte_hex = [b'0', value_hex[0]];
-                hex::decode_to_slice(&first_byte_hex, &mut buf[0..1])
-                    .map_err(serde::de::Error::custom)?;
-
-                // Decode the rest of the bytes
-                hex::decode_to_slice(&value_hex[1..], &mut buf[1..])
-                    .map_err(serde::de::Error::custom)?;
-                buf
-            } else {
-                hex::decode(value_hex).map_err(|e| serde::de::Error::custom(e))?
-            };
-            let r = super::Integer::from_bytes_msf(&bytes);
-            Ok(if positive { r } else { -r })
+            super::Integer::from_str_radix(&dict.value, dict.radix)
+                .ok_or(serde::de::Error::custom("Invalid hex number"))
         }
     }
 

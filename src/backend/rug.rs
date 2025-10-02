@@ -327,7 +327,7 @@ impl Integer {
     pub fn one() -> Self {
         Integer(rug::Integer::ONE.clone())
     }
-    pub(crate) fn zero() -> Self {
+    pub fn zero() -> Self {
         Integer(rug::Integer::new())
     }
     pub(crate) fn is_one(&self) -> bool {
@@ -482,6 +482,12 @@ impl Integer {
     }
     pub fn from_bytes_msf(bytes: &[u8]) -> Self {
         Integer(rug::Integer::from_digits(bytes, rug::integer::Order::Msf))
+    }
+    pub fn from_str_radix(s: &str, radix: u16) -> Option<Self> {
+        rug::Integer::from_str_radix(s, radix.into()).ok().map(Integer)
+    }
+    pub fn to_str_radix(&self, radix: u16) -> String {
+        self.0.to_string_radix(radix.into())
     }
 }
 

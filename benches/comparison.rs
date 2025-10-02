@@ -1,5 +1,5 @@
 use fast_paillier::utils;
-use rug::Integer;
+use fast_paillier::backend::Integer;
 
 /// Safe 1536 bit prime number in hex encoding
 const P: &str = "e84f454a8dd9e923fc85be8ca09278e28c5a3d9419cf118ef56912910f364c5\
@@ -34,7 +34,7 @@ fn encryption(c: &mut criterion::Criterion) {
         let x = ek
             .n()
             .clone()
-            .random_below(&mut fast_paillier::utils::external_rand(&mut rng))
+            .random_below(&mut rng)
             - ek.half_n();
         let nonce = fast_paillier::utils::sample_in_mult_group(&mut rng, ek.n());
         (x, nonce)
@@ -130,7 +130,7 @@ fn omul(c: &mut criterion::Criterion) {
     let mut generate_inputs = || {
         let scalar = ek
             .nn()
-            .random_below_ref(&mut utils::external_rand(&mut rng))
+            .random_below_ref(&mut rng)
             .into();
         let enc_x = utils::sample_in_mult_group(&mut rng, ek.nn());
         (scalar, enc_x)
@@ -154,11 +154,10 @@ fn omul(c: &mut criterion::Criterion) {
 
 /// Old implementation of safe primes
 pub fn naive_safe_prime(rng: &mut impl rand_core::RngCore, bits: u32) -> Integer {
-    use rug::{integer::IsPrime, Assign};
-    let mut rng = utils::external_rand(rng);
-    let mut x = Integer::new();
+    use fast_paillier::backend::IsPrime;
+    let mut x = Integer::zero();
     loop {
-        x.assign(Integer::random_bits(bits - 1, &mut rng));
+        x.assign_random_bits(bits - 1, rng);
         x.set_bit(bits - 2, true);
         x.next_prime_mut();
         x <<= 1;
@@ -196,31 +195,16 @@ fn safe_primes(c: &mut criterion::Criterion) {
     }
 }
 
-fn rng_covertion(c: &mut criterion::Criterion) {
-    let mut rng = rand_dev::DevRng::new();
-
-    let mut group = c.benchmark_group("PRNG convertion");
-
-    group.bench_function("into GMP", |b| {
-        b.iter(|| {
-            let mut gmp_rng = fast_paillier::utils::external_rand(std::hint::black_box(&mut rng));
-            let dyn_rng: &mut dyn rug::rand::MutRandState = &mut gmp_rng;
-            let _ = std::hint::black_box(dyn_rng);
-        })
-    });
-}
-
 criterion::criterion_group!(
     benches,
     encryption,
     decryption,
     omul,
     safe_primes,
-    rng_covertion
 );
 criterion::criterion_main!(benches);
 
 fn convert_integer_to_unknown_order(x: &Integer) -> libpaillier::unknown_order::BigNumber {
-    let bytes = x.to_digits::<u8>(rug::integer::Order::Msf);
+    let bytes = x.to_bytes_msf();
     libpaillier::unknown_order::BigNumber::from_slice(&bytes)
 }

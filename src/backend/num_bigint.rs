@@ -328,7 +328,7 @@ impl Integer {
     pub fn one() -> Self {
         Integer(num_traits::One::one())
     }
-    pub(crate) fn zero() -> Self {
+    pub fn zero() -> Self {
         Integer(num_traits::Zero::zero())
     }
     pub(crate) fn is_one(&self) -> bool {
@@ -506,6 +506,12 @@ impl Integer {
             num_bigint::Sign::Plus,
             bytes,
         ))
+    }
+    pub fn from_str_radix(s: &str, radix: u16) -> Option<Self> {
+        num_traits::Num::from_str_radix(s, radix.into()).ok().map(Integer)
+    }
+    pub fn to_str_radix(&self, radix: u16) -> String {
+        self.0.to_str_radix(radix.into())
     }
 }
 
