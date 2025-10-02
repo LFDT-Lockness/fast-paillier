@@ -64,6 +64,12 @@ impl std::ops::AddAssign<u32> for Integer {
     }
 }
 
+impl std::ops::AddAssign<&Integer> for Integer {
+    fn add_assign(&mut self, rhs: &Integer) {
+        self.0 += &rhs.0
+    }
+}
+
 ///// Sub /////
 
 impl std::ops::Sub<Integer> for Integer {
@@ -373,7 +379,7 @@ impl Integer {
     pub fn square(self) -> Self {
         &self * &self
     }
-    pub(crate) fn square_ref(&self) -> Self {
+    pub fn square_ref(&self) -> Self {
         self * self
     }
     pub fn sqrt(self) -> Self {
@@ -388,6 +394,9 @@ impl Integer {
     }
     pub fn modulo_ref(&self, divisor: &Self) -> Self {
         Integer(num_traits::Euclid::rem_euclid(&self.0, &divisor.0))
+    }
+    pub fn modulo_mut(&mut self, divisor: &Self) {
+        self.0 = num_traits::Euclid::rem_euclid(&self.0, &divisor.0);
     }
     pub fn mod_u(&self, modulo: u32) -> u32 {
         let big = num_traits::Euclid::rem_euclid(&self.0, &num_bigint::BigInt::from(modulo));
@@ -455,15 +464,14 @@ impl Integer {
 
     pub fn generate_prime(rng: &mut impl rand_core::RngCore, bit_size: u32) -> Self {
         let mut x = Integer::zero();
-        for _ in 0..4096 {
+        loop {
             x.assign_random_bits(bit_size, rng);
             x.set_bit(bit_size - 1, true);
             x |= 1u32;
             if glass_pumpkin::prime::check_with(x.0.magnitude(), rng) {
-                return x;
+                break x
             }
         }
-        panic!("Defective RNG: didn't find a prime number in 4096 attempts");
     }
 
     /// Compute jacobi symbol of a over n
@@ -565,14 +573,14 @@ mod test {
     use super::Integer;
 
     fn blum_prime(len: u32, rng: &mut impl rand_core::RngCore) -> Integer {
-        for _ in 0..1024 {
+        for _ in 0..4096 {
             let mut r = Integer::random_bits(len, rng);
             r.set_bit(0, true);
             if r.is_probably_prime(25) != super::IsPrime::No && super::last_limb(&r.0) % 4 == 3 {
                 return r;
             }
         }
-        panic!("defective randomness: did not generate a prime after 1024 attempts");
+        panic!("defective randomness: did not generate a prime after 4096 attempts");
     }
 
     /// Find principal square root in a Blum modulus quotient ring.

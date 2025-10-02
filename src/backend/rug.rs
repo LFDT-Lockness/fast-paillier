@@ -63,6 +63,12 @@ impl std::ops::AddAssign<u32> for Integer {
     }
 }
 
+impl std::ops::AddAssign<&Integer> for Integer {
+    fn add_assign(&mut self, rhs: &Integer) {
+        self.0 += &rhs.0
+    }
+}
+
 ///// Sub /////
 
 impl std::ops::Sub<Integer> for Integer {
@@ -366,7 +372,7 @@ impl Integer {
     pub fn square(self) -> Self {
         Integer(self.0.square())
     }
-    pub(crate) fn square_ref(&self) -> Self {
+    pub fn square_ref(&self) -> Self {
         Integer(self.0.square_ref().complete())
     }
     pub fn sqrt(self) -> Self {
@@ -381,6 +387,9 @@ impl Integer {
     }
     pub fn modulo_ref(&self, divisor: &Self) -> Self {
         Integer(self.0.modulo_ref(&divisor.0).complete())
+    }
+    pub fn modulo_mut(&mut self, divisor: &Self) {
+        self.0.modulo_mut(&divisor.0)
     }
     pub fn mod_u(&self, modulo: u32) -> u32 {
         self.0.mod_u(modulo)
