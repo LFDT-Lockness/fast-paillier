@@ -464,10 +464,6 @@ impl Integer {
         panic!("Defective RNG: didn't find a prime number in 4096 attempts");
     }
 
-    pub fn next_prime_mut(&mut self) {
-        self.0.next_prime_mut()
-    }
-
     pub fn jacobi(&self, n: &Self) -> i32 {
         self.0.jacobi(&n.0)
     }

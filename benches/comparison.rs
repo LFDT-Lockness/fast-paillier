@@ -128,10 +128,7 @@ fn omul(c: &mut criterion::Criterion) {
     let mut group = c.benchmark_group("OMul");
 
     let mut generate_inputs = || {
-        let scalar = ek
-            .nn()
-            .random_below_ref(&mut rng)
-            .into();
+        let scalar = utils::sample_in_mult_group_pm(&mut rng, ek.n());
         let enc_x = utils::sample_in_mult_group(&mut rng, ek.nn());
         (scalar, enc_x)
     };
@@ -155,11 +152,8 @@ fn omul(c: &mut criterion::Criterion) {
 /// Old implementation of safe primes
 pub fn naive_safe_prime(rng: &mut impl rand_core::RngCore, bits: u32) -> Integer {
     use fast_paillier::backend::IsPrime;
-    let mut x = Integer::zero();
     loop {
-        x.assign_random_bits(bits - 1, rng);
-        x.set_bit(bits - 2, true);
-        x.next_prime_mut();
+        let mut x = Integer::generate_prime(rng, bits - 1);
         x <<= 1;
         x += 1;
 

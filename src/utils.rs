@@ -31,6 +31,22 @@ pub fn sample_in_mult_group(rng: &mut impl RngCore, n: &Integer) -> Integer {
     }
 }
 
+/// Samples `x` such that abs(x) is in `Z*_n`
+pub fn sample_in_mult_group_pm(rng: &mut impl RngCore, n: &Integer) -> Integer {
+    let mut x = Integer::zero();
+    let mut sign_buf = [0u8; 1];
+    loop {
+        x.assign_random_below(n, rng);
+        rng.fill_bytes(&mut sign_buf);
+        if sign_buf[0] & 1 == 1 {
+            x = -x;
+        }
+        if in_mult_group_abs(&x, n) {
+            return x;
+        }
+    }
+}
+
 /// Generates a random safe prime
 pub fn generate_safe_prime(rng: &mut impl RngCore, bits: u32) -> Integer {
     sieve_generate_safe_primes(rng, bits, 135)
