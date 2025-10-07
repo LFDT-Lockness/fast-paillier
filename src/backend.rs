@@ -86,7 +86,7 @@ mod serialize {
                         .ok_or(serde::de::Error::custom("Invalid hex number"))
                 }
             }
-        }
+        };
     }
 
     #[cfg(feature = "backend-num-bigint")]

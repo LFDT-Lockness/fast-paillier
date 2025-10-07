@@ -5,9 +5,9 @@
     warn(clippy::expect_used, clippy::unwrap_used, clippy::panic)
 )]
 
+pub mod backend;
 mod decryption_key;
 mod encryption_key;
-pub mod backend;
 pub mod utils;
 
 #[cfg(feature = "serde")]
@@ -15,8 +15,8 @@ mod serde;
 
 use std::fmt;
 
-use rand_core::{CryptoRng, RngCore};
 use crate::backend::Integer;
+use rand_core::{CryptoRng, RngCore};
 
 /// Paillier ciphertext
 pub type Ciphertext = Integer;

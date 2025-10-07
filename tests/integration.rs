@@ -9,10 +9,7 @@ fn encrypt_decrypt() {
 
     for _ in 0..50 {
         // Generate plaintext in [-N/2; N/2)
-        let plaintext = ek
-            .n()
-            .clone()
-            .random_below(&mut rng);
+        let plaintext = ek.n().clone().random_below(&mut rng);
         let plaintext = plaintext - (ek.n() / 2u8);
         println!("Plaintext: {plaintext}");
 
@@ -75,14 +72,8 @@ fn homorphic_ops() {
     let ek = dk.encryption_key();
 
     for _ in 0..100 {
-        let a = ek
-            .n()
-            .clone()
-            .random_below(&mut rng);
-        let b = ek
-            .n()
-            .clone()
-            .random_below(&mut rng);
+        let a = ek.n().clone().random_below(&mut rng);
+        let b = ek.n().clone().random_below(&mut rng);
         let a = a - (ek.n() / 2u8);
         let b = b - (ek.n() / 2u8);
         println!("a: {a}");
@@ -129,10 +120,7 @@ fn encryption_with_known_factorization() {
 
     for i in 0..100 {
         println!("Iteration {i}");
-        let x = ek
-            .n()
-            .clone()
-            .random_below(&mut rng);
+        let x = ek.n().clone().random_below(&mut rng);
         let x = x - ek.half_n();
 
         let nonce = utils::sample_in_mult_group(&mut rng, ek.n());
@@ -156,8 +144,7 @@ fn factorized_exp_mod_n() {
     let crt = utils::CrtExp::build_n(&p, &q).unwrap();
 
     for _ in 0..100 {
-        let x: Integer = n
-            .random_below_ref(&mut rng);
+        let x: Integer = n.random_below_ref(&mut rng);
         let mut e: Integer = Integer::random_bits(1024, &mut rng);
         if rng.gen::<bool>() {
             e = -e
@@ -168,7 +155,7 @@ fn factorized_exp_mod_n() {
         println!("x: {x}");
         println!("e: {e}");
 
-        let expected: Integer = x.pow_mod_ref(&e, &n).unwrap().into();
+        let expected: Integer = x.pow_mod_ref(&e, &n).unwrap();
         let actual = crt.exp(&x, &crt_e).unwrap();
         assert_eq!(expected, actual);
     }
@@ -186,7 +173,7 @@ fn factorized_exp_mod_nn() {
     let crt = utils::CrtExp::build_nn(&p, &q).unwrap();
 
     for _ in 0..100 {
-        let x = nn .random_below_ref(&mut rng);
+        let x = nn.random_below_ref(&mut rng);
         let mut e = Integer::random_bits(1024, &mut rng);
         if rng.gen::<bool>() {
             e = -e
@@ -197,7 +184,7 @@ fn factorized_exp_mod_nn() {
         println!("x: {x}");
         println!("e: {e}");
 
-        let expected: Integer = x.pow_mod_ref(&e, &nn).unwrap().into();
+        let expected: Integer = x.pow_mod_ref(&e, &nn).unwrap();
         let actual = crt.exp(&x, &crt_e).unwrap();
         assert_eq!(expected, actual);
     }

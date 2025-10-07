@@ -1,7 +1,7 @@
 #![allow(missing_docs)]
 
-use rug::Complete;
 use super::IsPrime;
+use rug::Complete;
 
 /// Big integer type used in this crate
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug)]
@@ -27,7 +27,7 @@ impl Integer {
     /// ```rust
     /// # use fast_paillier::backend::rug::Integer;
     /// let x = Integer::from(0x11223344);
-    /// assert_eq!(x.to_bytes_lsf(), vec![0x11, 0x22, 0x33, 0x44]);
+    /// assert_eq!(x.to_bytes_msf(), vec![0x11, 0x22, 0x33, 0x44]);
     /// ```
     pub fn to_bytes_msf(&self) -> Vec<u8> {
         self.0.to_digits(rug::integer::Order::Msf)
@@ -42,7 +42,9 @@ impl Integer {
     }
     /// Parses the integer using the given radix
     pub fn from_str_radix(s: &str, radix: u16) -> Option<Self> {
-        rug::Integer::from_str_radix(s, radix.into()).ok().map(Integer)
+        rug::Integer::from_str_radix(s, radix.into())
+            .ok()
+            .map(Integer)
     }
     /// Convert the number to the underlying backend representation
     pub fn to_rug(self) -> rug::Integer {
@@ -402,10 +404,7 @@ impl Integer {
     }
 
     pub fn pow_mod(self, exponent: &Self, modulo: &Self) -> Option<Self> {
-        self.0
-            .pow_mod(&exponent.0, &modulo.0)
-            .map(Integer)
-            .ok()
+        self.0.pow_mod(&exponent.0, &modulo.0).map(Integer).ok()
     }
     pub fn pow_mod_ref(&self, exponent: &Self, modulo: &Self) -> Option<Self> {
         self.0
@@ -501,7 +500,7 @@ impl Integer {
 
     pub fn generate_prime(rng: &mut impl rand_core::RngCore, bit_size: u32) -> Self {
         let mut x = Integer::zero();
-        for _ in 0..4096 {
+        loop {
             x.assign_random_bits(bit_size, rng);
             x.set_bit(bit_size - 1, true);
             x |= 1u32;
@@ -509,7 +508,6 @@ impl Integer {
                 return x;
             }
         }
-        panic!("Defective RNG: didn't find a prime number in 4096 attempts");
     }
 
     pub fn jacobi(&self, n: &Self) -> i32 {
@@ -519,7 +517,7 @@ impl Integer {
 
 /// Wraps any randomness source that implements [`rand_core::RngCore`] and makes
 /// it compatible with [`rug::rand`].
-fn external_rand(rng: &mut impl rand_core::RngCore) -> rug::rand::ThreadRandState<'_> {
+pub(crate) fn external_rand(rng: &mut impl rand_core::RngCore) -> rug::rand::ThreadRandState<'_> {
     use bytemuck::TransparentWrapper;
 
     #[derive(TransparentWrapper)]

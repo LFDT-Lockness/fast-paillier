@@ -14,7 +14,7 @@ impl Integer {
     ///
     /// ## Example
     /// ```rust
-    /// # use fast_paillier::backend::rug::Integer;
+    /// # use fast_paillier::backend::num_bigint::Integer;
     /// let x = Integer::from(0x11223344);
     /// assert_eq!(x.to_bytes_lsf(), vec![0x44, 0x33, 0x22, 0x11]);
     /// ```
@@ -26,9 +26,9 @@ impl Integer {
     ///
     /// ## Example
     /// ```rust
-    /// # use fast_paillier::backend::rug::Integer;
+    /// # use fast_paillier::backend::num_bigint::Integer;
     /// let x = Integer::from(0x11223344);
-    /// assert_eq!(x.to_bytes_lsf(), vec![0x11, 0x22, 0x33, 0x44]);
+    /// assert_eq!(x.to_bytes_msf(), vec![0x11, 0x22, 0x33, 0x44]);
     /// ```
     pub fn to_bytes_msf(&self) -> Vec<u8> {
         self.0.to_bytes_be().1
@@ -46,7 +46,9 @@ impl Integer {
     }
     /// Parses the integer using the given radix
     pub fn from_str_radix(s: &str, radix: u16) -> Option<Self> {
-        num_traits::Num::from_str_radix(s, radix.into()).ok().map(Integer)
+        num_traits::Num::from_str_radix(s, radix.into())
+            .ok()
+            .map(Integer)
     }
     /// Convert the number to the underlying backend representation
     pub fn to_num_bigint(self) -> num_bigint::BigInt {
@@ -465,7 +467,10 @@ impl Integer {
         self.0.bits()
     }
     pub fn significant_dwords(&self) -> usize {
-        (usize::try_from(self.0.bits()).expect("length overflows usize") + 31) / 32
+        #[allow(clippy::expect_used)] // such overflow should never happen
+        usize::try_from(self.0.bits())
+            .expect("length overflows usize")
+            .div_ceil(32)
     }
 
     pub(crate) fn invert(self, modulo: &Self) -> Option<Self> {
@@ -491,7 +496,10 @@ impl Integer {
     pub fn random_bits(bits: u32, rng: &mut impl rand_core::RngCore) -> Self {
         let dist = num_bigint::RandomBits::new(bits.into());
         let uint = rand::distributions::Distribution::sample(&dist, rng);
-        Integer(num_bigint::BigInt::from_biguint(num_bigint::Sign::Plus, uint))
+        Integer(num_bigint::BigInt::from_biguint(
+            num_bigint::Sign::Plus,
+            uint,
+        ))
     }
 
     pub(crate) fn assign_random_below(&mut self, modulo: &Self, rng: &mut impl rand_core::RngCore) {
@@ -520,7 +528,7 @@ impl Integer {
             x.set_bit(bit_size - 1, true);
             x |= 1u32;
             if glass_pumpkin::prime::check_with(x.0.magnitude(), rng) {
-                break x
+                break x;
             }
         }
     }
@@ -557,7 +565,7 @@ fn jacobi_inner(mult: i32, a: &num_bigint::BigInt, n: &num_bigint::BigInt) -> i3
     }
     // Step 2
     if num_traits::One::is_one(a) {
-        return mult * 1;
+        return mult;
     }
 
     // Step 3. Find a1, e such that a = 2^e * a1 where a1 is odd
@@ -570,8 +578,8 @@ fn jacobi_inner(mult: i32, a: &num_bigint::BigInt, n: &num_bigint::BigInt) -> i3
     debug_assert_eq!(*a, &a1 << e);
 
     // Step 4
-    let n_mod_8 = last_limb(&n) % 8;
-    let mut s = if e % 2 == 0 {
+    let n_mod_8 = last_limb(n) % 8;
+    let mut s = if e.is_multiple_of(2) {
         // if e is even, s = 1
         1
     } else if n_mod_8 == 1 || n_mod_8 == 7 {
@@ -585,7 +593,7 @@ fn jacobi_inner(mult: i32, a: &num_bigint::BigInt, n: &num_bigint::BigInt) -> i3
     };
 
     // Step 5
-    if last_limb(&n) % 4 == 3 && last_limb(&a1) % 4 == 3 {
+    if last_limb(n) % 4 == 3 && last_limb(&a1) % 4 == 3 {
         s = -s
     }
 
@@ -624,6 +632,7 @@ mod test {
     /// Pre-requisites:
     /// - x is a quadratic residue in Zn
     /// - `n = pq`, p and q are Blum primes
+    ///
     /// If these don't hold, the result is a bogus number in Zn
     fn blum_sqrt(x: &Integer, p: &Integer, q: &Integer, n: &Integer) -> Integer {
         // Exponent in pq Blum modulus to obtain the principal square root.

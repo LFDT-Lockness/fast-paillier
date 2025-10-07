@@ -1,5 +1,5 @@
-use fast_paillier::utils;
 use fast_paillier::backend::Integer;
+use fast_paillier::utils;
 
 /// Safe 1536 bit prime number in hex encoding
 const P: &str = "e84f454a8dd9e923fc85be8ca09278e28c5a3d9419cf118ef56912910f364c5\
@@ -31,11 +31,7 @@ fn encryption(c: &mut criterion::Criterion) {
     let mut group = c.benchmark_group("Encrypt");
 
     let mut generate_inputs = || {
-        let x = ek
-            .n()
-            .clone()
-            .random_below(&mut rng)
-            - ek.half_n();
+        let x = ek.n().clone().random_below(&mut rng) - ek.half_n();
         let nonce = fast_paillier::utils::sample_in_mult_group(&mut rng, ek.n());
         (x, nonce)
     };
@@ -189,13 +185,7 @@ fn safe_primes(c: &mut criterion::Criterion) {
     }
 }
 
-criterion::criterion_group!(
-    benches,
-    encryption,
-    decryption,
-    omul,
-    safe_primes,
-);
+criterion::criterion_group!(benches, encryption, decryption, omul, safe_primes,);
 criterion::criterion_main!(benches);
 
 fn convert_integer_to_unknown_order(x: &Integer) -> libpaillier::unknown_order::BigNumber {
