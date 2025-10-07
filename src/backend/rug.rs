@@ -1,10 +1,58 @@
 #![allow(missing_docs)]
+
 use rug::Complete;
 use super::IsPrime;
 
-/// Big integer type
+/// Big integer type used in this crate
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug)]
 pub struct Integer(rug::Integer);
+
+impl Integer {
+    /// Converts to bytes, with bytes representing _least_ significant base256
+    /// digits appearing first. Discards the sign
+    ///
+    /// ## Example
+    /// ```rust
+    /// # use fast_paillier::backend::rug::Integer;
+    /// let x = Integer::from(0x11223344);
+    /// assert_eq!(x.to_bytes_lsf(), vec![0x44, 0x33, 0x22, 0x11]);
+    /// ```
+    pub fn to_bytes_lsf(&self) -> Vec<u8> {
+        self.0.to_digits(rug::integer::Order::Lsf)
+    }
+    /// Converts to bytes, with bytes representing _most_ significant base256
+    /// digits appearing first. Discards the sign
+    ///
+    /// ## Example
+    /// ```rust
+    /// # use fast_paillier::backend::rug::Integer;
+    /// let x = Integer::from(0x11223344);
+    /// assert_eq!(x.to_bytes_lsf(), vec![0x11, 0x22, 0x33, 0x44]);
+    /// ```
+    pub fn to_bytes_msf(&self) -> Vec<u8> {
+        self.0.to_digits(rug::integer::Order::Msf)
+    }
+    /// Converts bytes to Integer. Inverse of [`to_bytes_msf`]
+    pub fn from_bytes_msf(bytes: &[u8]) -> Self {
+        Integer(rug::Integer::from_digits(bytes, rug::integer::Order::Msf))
+    }
+    /// Returns a string representation of the number for the specified radix
+    pub fn to_str_radix(&self, radix: u16) -> String {
+        self.0.to_string_radix(radix.into())
+    }
+    /// Parses the integer using the given radix
+    pub fn from_str_radix(s: &str, radix: u16) -> Option<Self> {
+        rug::Integer::from_str_radix(s, radix.into()).ok().map(Integer)
+    }
+    /// Convert the number to the underlying backend representation
+    pub fn to_rug(self) -> rug::Integer {
+        self.0
+    }
+    /// Convert the number from the underlying backend representation
+    pub fn from_rug(x: rug::Integer) -> Self {
+        Self(x)
+    }
+}
 
 ///// Add /////
 
@@ -467,29 +515,11 @@ impl Integer {
     pub fn jacobi(&self, n: &Self) -> i32 {
         self.0.jacobi(&n.0)
     }
-
-    /// Discards the sign
-    pub fn to_bytes_lsf(&self) -> Vec<u8> {
-        self.0.to_digits(rug::integer::Order::Lsf)
-    }
-    /// Discards the sign
-    pub fn to_bytes_msf(&self) -> Vec<u8> {
-        self.0.to_digits(rug::integer::Order::Msf)
-    }
-    pub fn from_bytes_msf(bytes: &[u8]) -> Self {
-        Integer(rug::Integer::from_digits(bytes, rug::integer::Order::Msf))
-    }
-    pub fn from_str_radix(s: &str, radix: u16) -> Option<Self> {
-        rug::Integer::from_str_radix(s, radix.into()).ok().map(Integer)
-    }
-    pub fn to_str_radix(&self, radix: u16) -> String {
-        self.0.to_string_radix(radix.into())
-    }
 }
 
 /// Wraps any randomness source that implements [`rand_core::RngCore`] and makes
 /// it compatible with [`rug::rand`].
-pub(crate) fn external_rand(rng: &mut impl rand_core::RngCore) -> rug::rand::ThreadRandState<'_> {
+fn external_rand(rng: &mut impl rand_core::RngCore) -> rug::rand::ThreadRandState<'_> {
     use bytemuck::TransparentWrapper;
 
     #[derive(TransparentWrapper)]
@@ -504,4 +534,3 @@ pub(crate) fn external_rand(rng: &mut impl rand_core::RngCore) -> rug::rand::Thr
 
     rug::rand::ThreadRandState::new_custom(ExternalRand::wrap_mut(rng))
 }
-

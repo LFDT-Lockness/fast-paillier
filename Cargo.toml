@@ -1,6 +1,6 @@
 [package]
 name = "fast-paillier"
-version = "0.1.1"
+version = "0.2.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "Optimized Paillier encryption scheme"
@@ -11,11 +11,12 @@ keywords = ["paillier", "public-key", "encryption"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rug = { version = "1.24", default-features = false, features = ["std", "integer", "rand"] }
-num-bigint = { version = "0.4.6", default-features = false, features = ["std", "rand"] }
-num-traits = "0.2.19"
-num-integer = "0.1.46"
-glass_pumpkin = "1.7"
+rug = { version = "1.24", optional = true, default-features = false, features = ["std", "integer", "rand"] }
+# 4 crates required to use num-bigint to the full
+num-bigint = { version = "0.4.6", optional = true, default-features = false, features = ["std", "rand"] }
+num-traits = { version = "0.2.19", optional = true }
+num-integer = { version = "0.1.46", optional = true }
+glass_pumpkin = { version = "1.7", optional = true }
 
 rand = "0.8"
 rand_core = "0.6"
@@ -23,22 +24,31 @@ rand_core = "0.6"
 bytemuck = { version = "1.5", features = ["derive"] }
 thiserror = "1"
 
-serde = { version = "1", optional = true }
+serde = { version = "1", optional = true, features = ["derive"] }
 hex = { version = "0.4.3", optional = true }
 
 [dev-dependencies]
 rand_dev = "0.1"
+rug = { version = "1.24", default-features = false, features = ["std", "integer", "rand", "serde"] }
 criterion = { version = "0.5", features = ["html_reports"] }
 libpaillier = { version = "0.5", default-features = false, features = ["gmp"] }
 serde_json = "1"
 ciborium = "0.2.2"
 
 [features]
-serde = ["dep:serde", "dep:hex", "rug/serde", "num-bigint/serde"]
+default = ["backend-num-bigint"]
+
+serde = ["dep:serde", "dep:hex"]
+backend-rug = ["dep:rug"]
+backend-num-bigint = ["dep:num-bigint", "dep:num-traits", "dep:num-integer", "dep:glass_pumpkin"]
 
 [[bench]]
 name = "comparison"
 harness = false
 
-[profile.dev.package.num-bigint]
-opt-level = 3
+# Make the backend less slow in debug builds to speed up tests
+[profile.dev.package]
+num-bigint.opt-level = 3
+num-traits.opt-level = 3
+num-integer.opt-level = 3
+glass_pumpkin.opt-level = 3

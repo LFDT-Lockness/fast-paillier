@@ -1,10 +1,38 @@
-//! Big integer backend
+//! Abstract big integer backend. This module makes no guarantees of
+//! applicability, all methods are considered internal, except for conversion
+//! functions:
+//!
+//! - [`Integer::to_bytes_lsf`]
+//! - [`Integer::to_bytes_msf`]
+//! - [`Integer::from_bytes_msf`]
+//! - [`Integer::to_str_radix`]
+//! - [`Integer::from_str_radix`]
+//! - [`num_bigint::Integer::to_num_bigint`]
+//! - [`num_bigint::Integer::from_num_bigint`]
+//! - [`rug::Integer::to_rug`]
+//! - [`rug::Integer::from_rug`]
+//!
+//! Likewise, the serde serialization format is also well-defined and stable,
+//! even compatible with older versions of this library.
+//!
+//! To select a backend, use a feature flag:
+//!
+//! - `backend-num-bigint` (default) - use [`num-bigit`](https://docs.rs/num-bigint)
+//! - `backend-rug` - use [`rug`](https://docs.rs/rug)
+//!
+//! When both features are enabled at once, num-bigint is used
 
-#[allow(dead_code)]
-mod num_bigint;
-#[allow(dead_code)]
-mod rug;
+#[cfg(feature = "backend-num-bigint")]
+pub mod num_bigint;
+#[cfg(feature = "backend-rug")]
+pub mod rug;
 
+// num-bigint backend is used when both backends are turned on. This is useful
+// for tests and benchmarks, as one could explicitly refer to the backends by
+// the module name to compare their behaviour
+#[cfg(feature = "backend-num-bigint")]
+pub use num_bigint::*;
+#[cfg(all(not(feature = "backend-num-bigint"), feature = "backend-rug"))]
 pub use rug::*;
 
 /// Whether a number is prime. See [`Integer::is_probably_prime`] method
@@ -25,36 +53,46 @@ mod serialize {
     ///   "value": "995d245c8ec97f55e23a1dff88684269b8678297f2659b4b02fde7db4128e9987e9838a93f6dba6591b14bae1a96145bab391214abad56e73ecebc67f37396c4813b2cd34aedb4b6bf532e452a1f43646b2bfe07a34ff791746941e27712d405128c929b416e036674dbe58abff1ae0dd886f9b5262c1bf477bab09fe06d167e0a4b05b5b80195baf77e51946b20408cc6f8d581db5bf0d32f93fd247c119347d4819730862141b315b9a14a9b01d3216013dd22e18cdcfbbae4c2af790dbbeb"
     /// }
     /// ```
-    /// A number is represented as a dict with a radix and alphanumeric digits.
-    /// The radix is always 16. We keep our format compatible
+    /// A number is represented as a dict with a radix and alphanumeric digits
+    /// with most significant first. The radix is always 16. We keep our format
+    /// compatible
     #[derive(serde::Serialize, serde::Deserialize)]
     struct DictFormat<'a> {
         radix: u16,
         value: std::borrow::Cow<'a, str>,
     }
 
-    impl serde::Serialize for super::Integer {
-        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: serde::Serializer,
-        {
-            let value = self.to_str_radix(16).into();
-            let dict = DictFormat { radix: 16, value };
-            dict.serialize(serializer)
+    macro_rules! make_serde {
+        ($integer:ty) => {
+            impl serde::Serialize for $integer {
+                fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+                where
+                    S: serde::Serializer,
+                {
+                    let value = self.to_str_radix(16).into();
+                    let dict = DictFormat { radix: 16, value };
+                    dict.serialize(serializer)
+                }
+            }
+
+            impl<'de> serde::Deserialize<'de> for $integer {
+                fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+                where
+                    D: serde::Deserializer<'de>,
+                {
+                    let dict = DictFormat::deserialize(deserializer)?;
+
+                    <$integer>::from_str_radix(&dict.value, dict.radix)
+                        .ok_or(serde::de::Error::custom("Invalid hex number"))
+                }
+            }
         }
     }
 
-    impl<'de> serde::Deserialize<'de> for super::Integer {
-        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where
-            D: serde::Deserializer<'de>,
-        {
-            let dict = DictFormat::deserialize(deserializer)?;
-
-            super::Integer::from_str_radix(&dict.value, dict.radix)
-                .ok_or(serde::de::Error::custom("Invalid hex number"))
-        }
-    }
+    #[cfg(feature = "backend-num-bigint")]
+    make_serde!(super::num_bigint::Integer);
+    #[cfg(feature = "backend-rug")]
+    make_serde!(super::rug::Integer);
 
     #[cfg(test)]
     mod test {
