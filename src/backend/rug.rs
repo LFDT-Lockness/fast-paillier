@@ -32,7 +32,7 @@ impl Integer {
     pub fn to_bytes_msf(&self) -> Vec<u8> {
         self.0.to_digits(rug::integer::Order::Msf)
     }
-    /// Converts bytes to Integer. Inverse of [`to_bytes_msf`]
+    /// Converts bytes to Integer. Inverse of [`Integer::to_bytes_msf`]
     pub fn from_bytes_msf(bytes: &[u8]) -> Self {
         Integer(rug::Integer::from_digits(bytes, rug::integer::Order::Msf))
     }

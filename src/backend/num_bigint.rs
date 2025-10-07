@@ -33,7 +33,7 @@ impl Integer {
     pub fn to_bytes_msf(&self) -> Vec<u8> {
         self.0.to_bytes_be().1
     }
-    /// Converts bytes to Integer. Inverse of [`to_bytes_msf`]
+    /// Converts bytes to Integer. Inverse of [`Integer::to_bytes_msf`]
     pub fn from_bytes_msf(bytes: &[u8]) -> Self {
         Integer(num_bigint::BigInt::from_bytes_be(
             num_bigint::Sign::Plus,
