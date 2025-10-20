@@ -1,5 +1,4 @@
 use fast_paillier::backend::Integer;
-use fast_paillier::utils;
 
 /// Safe 1536 bit prime number in hex encoding
 const P: &str = "e84f454a8dd9e923fc85be8ca09278e28c5a3d9419cf118ef56912910f364c5\
@@ -31,8 +30,8 @@ fn encryption(c: &mut criterion::Criterion) {
     let mut group = c.benchmark_group("Encrypt");
 
     let mut generate_inputs = || {
-        let x = ek.n().clone().random_below(&mut rng) - ek.half_n();
-        let nonce = fast_paillier::utils::sample_in_mult_group(&mut rng, ek.n());
+        let x = ek.n().random_below_ref(&mut rng) - ek.half_n();
+        let nonce = Integer::sample_in_mult_group_of(&mut rng, ek.n());
         (x, nonce)
     };
 
@@ -84,7 +83,7 @@ fn decryption(c: &mut criterion::Criterion) {
 
     let mut group = c.benchmark_group("Decrypt");
 
-    let mut generate_inputs = || utils::sample_in_mult_group(&mut rng, ek.nn());
+    let mut generate_inputs = || Integer::sample_in_mult_group_of(&mut rng, ek.nn());
 
     group.bench_function("Decrypt with CRT", |b| {
         b.iter_batched(
@@ -124,8 +123,8 @@ fn omul(c: &mut criterion::Criterion) {
     let mut group = c.benchmark_group("OMul");
 
     let mut generate_inputs = || {
-        let scalar = utils::sample_in_mult_group_pm(&mut rng, ek.n());
-        let enc_x = utils::sample_in_mult_group(&mut rng, ek.nn());
+        let scalar = Integer::sample_pm_in_mult_group_of(&mut rng, ek.n());
+        let enc_x = Integer::sample_in_mult_group_of(&mut rng, ek.nn());
         (scalar, enc_x)
     };
 
@@ -171,16 +170,16 @@ fn safe_primes(c: &mut criterion::Criterion) {
             b.iter(|| naive_safe_prime(&mut rng.clone(), bits))
         });
         group.bench_function(id("Current"), |b| {
-            b.iter(|| utils::generate_safe_prime(&mut rng.clone(), bits))
+            b.iter(|| Integer::generate_safe_prime(&mut rng.clone(), bits))
         });
         group.bench_function(id("Trial with sieve of 120 primes"), |b| {
-            b.iter(|| utils::sieve_generate_safe_primes(&mut rng.clone(), bits, 120))
+            b.iter(|| fast_paillier::backend::sieve_generate_safe_primes(&mut rng.clone(), bits, 120))
         });
         group.bench_function(id("Trial with sieve of 135 primes"), |b| {
-            b.iter(|| utils::sieve_generate_safe_primes(&mut rng.clone(), bits, 135))
+            b.iter(|| fast_paillier::backend::sieve_generate_safe_primes(&mut rng.clone(), bits, 135))
         });
         group.bench_function(id("Trial with sieve of 150 primes"), |b| {
-            b.iter(|| utils::sieve_generate_safe_primes(&mut rng.clone(), bits, 150))
+            b.iter(|| fast_paillier::backend::sieve_generate_safe_primes(&mut rng.clone(), bits, 150))
         });
     }
 }
