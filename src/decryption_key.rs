@@ -47,7 +47,7 @@ impl DecryptionKey {
         let pm1 = &p - 1u8;
         let qm1 = &q - 1u8;
         let ek = EncryptionKey::from_n(&p * &q);
-        let lambda = pm1.clone().lcm(&qm1);
+        let lambda = pm1.lcm_ref(&qm1);
         if lambda.cmp0().is_eq() {
             return Err(Reason::InvalidPQ.into());
         }

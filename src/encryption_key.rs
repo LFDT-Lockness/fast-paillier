@@ -73,8 +73,7 @@ impl EncryptionKey {
         let a = (Integer::one() + &x * self.n()) % self.nn();
         // b = nonce^N mod N^2
         let b = nonce
-            .clone()
-            .pow_mod(self.n(), self.nn())
+            .pow_mod_ref(self.n(), self.nn())
             .ok_or(Bug::PowModUndef)?;
 
         let c = (a * b).modulo(self.nn());

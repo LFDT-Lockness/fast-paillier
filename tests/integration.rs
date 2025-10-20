@@ -9,7 +9,7 @@ fn encrypt_decrypt() {
 
     for _ in 0..50 {
         // Generate plaintext in [-N/2; N/2)
-        let plaintext = ek.n().clone().random_below(&mut rng);
+        let plaintext = ek.n().random_below_ref(&mut rng);
         let plaintext = plaintext - (ek.n() / 2u8);
         println!("Plaintext: {plaintext}");
 
@@ -72,8 +72,8 @@ fn homorphic_ops() {
     let ek = dk.encryption_key();
 
     for _ in 0..100 {
-        let a = ek.n().clone().random_below(&mut rng);
-        let b = ek.n().clone().random_below(&mut rng);
+        let a = ek.n().random_below_ref(&mut rng);
+        let b = ek.n().random_below_ref(&mut rng);
         let a = a - (ek.n() / 2u8);
         let b = b - (ek.n() / 2u8);
         println!("a: {a}");
@@ -120,7 +120,7 @@ fn encryption_with_known_factorization() {
 
     for i in 0..100 {
         println!("Iteration {i}");
-        let x = ek.n().clone().random_below(&mut rng);
+        let x = ek.n().random_below_ref(&mut rng);
         let x = x - ek.half_n();
 
         let nonce = Integer::sample_in_mult_group_of(&mut rng, ek.n());

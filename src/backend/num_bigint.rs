@@ -396,7 +396,7 @@ impl Integer {
         self.0.magnitude().cmp(other.0.magnitude())
     }
 
-    pub fn lcm(self, other: &Self) -> Self {
+    pub fn lcm_ref(&self, other: &Self) -> Self {
         Integer(self.0.lcm(&other.0))
     }
     pub fn gcd_ref(&self, other: &Self) -> Self {

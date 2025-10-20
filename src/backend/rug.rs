@@ -392,8 +392,8 @@ impl Integer {
         self.0.cmp_abs(&other.0)
     }
 
-    pub fn lcm(self, other: &Self) -> Self {
-        Integer(self.0.lcm(&other.0))
+    pub fn lcm_ref(&self, other: &Self) -> Self {
+        Integer(self.0.lcm_ref(&other.0).complete())
     }
     pub fn gcd_ref(&self, other: &Self) -> Self {
         Integer(self.0.gcd_ref(&other.0).complete())
