@@ -230,7 +230,6 @@ mod test {
             let mut prime = super::generate_safe_prime(&mut rng, size);
             // rug doesn't have bit length operations, so
             prime >>= size - 1;
-            assert_eq!(prime.significant_bits(), 1);
             assert_eq!(prime, Integer::one());
         }
     }

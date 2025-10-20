@@ -404,12 +404,10 @@ impl Integer {
     }
 
     pub fn cmp0(&self) -> std::cmp::Ordering {
-        if num_traits::Zero::is_zero(&self.0) {
-            std::cmp::Ordering::Equal
-        } else if self.0.is_positive() {
-            std::cmp::Ordering::Greater
-        } else {
-            std::cmp::Ordering::Less
+        match self.0.sign() {
+            num_bigint::Sign::NoSign => std::cmp::Ordering::Equal,
+            num_bigint::Sign::Plus => std::cmp::Ordering::Greater,
+            num_bigint::Sign::Minus => std::cmp::Ordering::Less,
         }
     }
 
