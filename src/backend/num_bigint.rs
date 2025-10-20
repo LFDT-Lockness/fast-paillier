@@ -384,7 +384,7 @@ impl Integer {
     pub fn zero() -> Self {
         Integer(num_traits::Zero::zero())
     }
-    pub(crate) fn is_one(&self) -> bool {
+    pub fn is_one(&self) -> bool {
         num_traits::One::is_one(&self.0)
     }
 
@@ -392,11 +392,11 @@ impl Integer {
         self.0.is_even()
     }
 
-    pub(crate) fn cmp_abs(&self, other: &Self) -> std::cmp::Ordering {
+    pub fn cmp_abs(&self, other: &Self) -> std::cmp::Ordering {
         self.0.magnitude().cmp(other.0.magnitude())
     }
 
-    pub(crate) fn lcm(self, other: &Self) -> Self {
+    pub fn lcm(self, other: &Self) -> Self {
         Integer(self.0.lcm(&other.0))
     }
     pub fn gcd_ref(&self, other: &Self) -> Self {
@@ -471,7 +471,7 @@ impl Integer {
             .div_ceil(32)
     }
 
-    pub(crate) fn invert(self, modulo: &Self) -> Option<Self> {
+    pub fn invert(self, modulo: &Self) -> Option<Self> {
         self.0.modinv(&modulo.0).map(Integer)
     }
     pub fn invert_ref(&self, modulo: &Self) -> Option<Self> {
@@ -500,7 +500,7 @@ impl Integer {
         ))
     }
 
-    pub(crate) fn assign_random_below(&mut self, modulo: &Self, rng: &mut impl rand_core::RngCore) {
+    pub fn assign_random_below(&mut self, modulo: &Self, rng: &mut impl rand_core::RngCore) {
         *self = modulo.random_below_ref(rng);
     }
 

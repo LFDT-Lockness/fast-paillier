@@ -380,7 +380,7 @@ impl Integer {
     pub fn zero() -> Self {
         Integer(rug::Integer::new())
     }
-    pub(crate) fn is_one(&self) -> bool {
+    pub fn is_one(&self) -> bool {
         &self.0 == rug::Integer::ONE
     }
 
@@ -388,11 +388,11 @@ impl Integer {
         self.0.is_even()
     }
 
-    pub(crate) fn cmp_abs(&self, other: &Self) -> std::cmp::Ordering {
+    pub fn cmp_abs(&self, other: &Self) -> std::cmp::Ordering {
         self.0.cmp_abs(&other.0)
     }
 
-    pub(crate) fn lcm(self, other: &Self) -> Self {
+    pub fn lcm(self, other: &Self) -> Self {
         Integer(self.0.lcm(&other.0))
     }
     pub fn gcd_ref(&self, other: &Self) -> Self {
@@ -449,7 +449,7 @@ impl Integer {
         self.0.significant_digits::<u32>()
     }
 
-    pub(crate) fn invert(self, modulo: &Self) -> Option<Self> {
+    pub fn invert(self, modulo: &Self) -> Option<Self> {
         self.0.invert(&modulo.0).ok().map(Integer)
     }
     pub fn invert_ref(&self, modulo: &Self) -> Option<Self> {
@@ -477,7 +477,7 @@ impl Integer {
         Integer(rug::Integer::random_bits(bits, &mut rng).complete())
     }
 
-    pub(crate) fn assign_random_below(&mut self, modulo: &Self, rng: &mut impl rand_core::RngCore) {
+    pub fn assign_random_below(&mut self, modulo: &Self, rng: &mut impl rand_core::RngCore) {
         let mut rng = external_rand(rng);
         let r = modulo.0.random_below_ref(&mut rng);
         rug::Assign::assign(&mut self.0, r)
@@ -517,7 +517,7 @@ impl Integer {
 
 /// Wraps any randomness source that implements [`rand_core::RngCore`] and makes
 /// it compatible with [`rug::rand`].
-pub(crate) fn external_rand(rng: &mut impl rand_core::RngCore) -> rug::rand::ThreadRandState<'_> {
+pub fn external_rand(rng: &mut impl rand_core::RngCore) -> rug::rand::ThreadRandState<'_> {
     use bytemuck::TransparentWrapper;
 
     #[derive(TransparentWrapper)]

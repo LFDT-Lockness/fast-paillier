@@ -101,8 +101,7 @@ mod serialize {
         #[test]
         fn rug_compatible_deser_json() {
             let mut rng = rand_dev::DevRng::new();
-            let mut rng = crate::backend::rug::external_rand(&mut rng);
-            let num: rug::Integer = rug::Integer::random_bits(128, &mut rng).into();
+            let num = crate::backend::rug::Integer::random_bits(128, &mut rng).to_rug();
             let num_s = serde_json::to_vec(&num).unwrap();
             let num_: Integer = serde_json::from_slice(&num_s).unwrap();
 
@@ -122,8 +121,7 @@ mod serialize {
         #[test]
         fn rug_compatible_deser_cbor() {
             let mut rng = rand_dev::DevRng::new();
-            let mut rng = crate::backend::rug::external_rand(&mut rng);
-            let num: rug::Integer = rug::Integer::random_bits(128, &mut rng).into();
+            let num = crate::backend::rug::Integer::random_bits(128, &mut rng).to_rug();
             let mut buf = Vec::new();
             ciborium::into_writer(&num, &mut buf).unwrap();
             let num_: Integer = ciborium::from_reader(buf.as_slice()).unwrap();
