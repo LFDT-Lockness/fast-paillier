@@ -513,6 +513,14 @@ impl Integer {
     pub fn jacobi(&self, n: &Self) -> i32 {
         self.0.jacobi(&n.0)
     }
+
+    /// Compute l^le * r^re modulo self
+    pub fn combine(&self, l: &Self, le: &Self, r: &Self, re: &Self) -> Option<Self> {
+        let l_to_le = l.0.pow_mod_ref(&le.0, &self.0)?.complete();
+        let r_to_re = r.0.pow_mod_ref(&re.0, &self.0)?.complete();
+        let r = (l_to_le * r_to_re).modulo(&self.0);
+        Some(Integer(r))
+    }
 }
 
 /// Wraps any randomness source that implements [`rand_core::RngCore`] and makes

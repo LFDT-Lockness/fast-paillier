@@ -549,6 +549,14 @@ impl Integer {
         let a = self.modulo_ref(n);
         jacobi_inner(1, &a.0, &n.0)
     }
+
+    /// Compute l^le * r^re modulo self
+    pub fn combine(&self, l: &Self, le: &Self, r: &Self, re: &Self) -> Option<Self> {
+        let l_to_le = l.pow_mod_ref(le, self)?;
+        let r_to_re = r.pow_mod_ref(re, self)?;
+        let r = (l_to_le * r_to_re).modulo(self);
+        Some(r)
+    }
 }
 
 /// Computes jacobi symbol of `a` over `n` multiplied at `mult`

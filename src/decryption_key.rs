@@ -28,8 +28,8 @@ impl DecryptionKey {
     ///
     /// Samples two safe 1536-bits primes that meets 128 bits security level
     pub fn generate(rng: &mut (impl RngCore + CryptoRng)) -> Result<Self, Error> {
-        let p = utils::generate_safe_prime(rng, 1536);
-        let q = utils::generate_safe_prime(rng, 1536);
+        let p = Integer::generate_safe_prime(rng, 1536);
+        let q = Integer::generate_safe_prime(rng, 1536);
         Self::from_primes(p, q)
     }
 
@@ -73,7 +73,7 @@ impl DecryptionKey {
 
     /// Decrypts the ciphertext, returns plaintext in `{-N/2, .., N_2}`
     pub fn decrypt(&self, c: &Ciphertext) -> Result<Plaintext, Error> {
-        if !utils::in_mult_group(c, self.ek.nn()) {
+        if !c.in_mult_group_of(self.ek.nn()) {
             return Err(Reason::Decrypt.into());
         }
 
@@ -102,7 +102,7 @@ impl DecryptionKey {
     ///
     /// Returns error if inputs are not in specified range
     pub fn encrypt_with(&self, x: &Plaintext, nonce: &Nonce) -> Result<Ciphertext, Error> {
-        if !self.ek.in_signed_group(x) || !utils::in_mult_group(nonce, self.n()) {
+        if !self.ek.in_signed_group(x) || !nonce.in_mult_group_of(self.n()) {
             return Err(Reason::Encrypt.into());
         }
 
@@ -135,7 +135,7 @@ impl DecryptionKey {
         rng: &mut (impl RngCore + CryptoRng),
         x: &Plaintext,
     ) -> Result<(Ciphertext, Nonce), Error> {
-        let nonce = utils::sample_in_mult_group(rng, self.ek.n());
+        let nonce = Integer::sample_in_mult_group_of(rng, self.ek.n());
         let ciphertext = self.encrypt_with(x, &nonce)?;
         Ok((ciphertext, nonce))
     }
@@ -148,9 +148,7 @@ impl DecryptionKey {
     /// omul(a, Enc(c)) = Enc(a * c)
     /// ```
     pub fn omul(&self, scalar: &Integer, ciphertext: &Ciphertext) -> Result<Ciphertext, Error> {
-        if !utils::in_mult_group_abs(scalar, self.n())
-            || !utils::in_mult_group(ciphertext, self.ek.nn())
-        {
+        if !scalar.abs_in_mult_group_of(self.n()) || !ciphertext.in_mult_group_of(self.ek.nn()) {
             return Err(Reason::Ops.into());
         }
 

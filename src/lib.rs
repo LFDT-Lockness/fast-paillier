@@ -149,7 +149,7 @@ impl<E: AnyEncryptionKey> AnyEncryptionKeyExt for E {
         rng: &mut (impl RngCore + CryptoRng),
         x: &Plaintext,
     ) -> Result<(Ciphertext, Nonce), Error> {
-        let nonce = utils::sample_in_mult_group(rng, self.n());
+        let nonce = Integer::sample_in_mult_group_of(rng, self.n());
         let ciphertext = self.encrypt_with(x, &nonce)?;
         Ok((ciphertext, nonce))
     }

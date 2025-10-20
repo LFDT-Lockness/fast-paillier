@@ -44,6 +44,96 @@ pub enum IsPrime {
     Yes,
 }
 
+impl Integer {
+    /// Checks that `self` is in Z<super>*</super><sub>n</sub>
+    #[inline(always)]
+    pub fn in_mult_group_of(&self, n: &Self) -> bool {
+        self.cmp0().is_gt() && self < n && self.gcd_ref(n).is_one()
+    }
+
+    /// Checks that `abs(self)` is in Z<super>*</super><sub>n</sub>
+    #[inline(always)]
+    pub fn abs_in_mult_group_of(self: &Integer, n: &Integer) -> bool {
+        self.cmp_abs(n).is_lt() && self.gcd_ref(n).is_one()
+    }
+
+    /// Samples `x` in Z*_n
+    pub fn sample_in_mult_group_of(rng: &mut impl rand_core::RngCore, n: &Self) -> Self {
+        let mut x = Integer::zero();
+        loop {
+            x.assign_random_below(n, rng);
+            if x.in_mult_group_of(n) {
+                return x;
+            }
+        }
+    }
+
+    /// Samples `x` such that abs(x) is in `Z*_n`
+    pub fn sample_pm_in_mult_group_of(rng: &mut impl rand_core::RngCore, n: &Self) -> Self {
+        let mut x = Integer::zero();
+        let mut sign_buf = [0u8; 1];
+        loop {
+            x.assign_random_below(n, rng);
+            rng.fill_bytes(&mut sign_buf);
+            if sign_buf[0] & 1 == 1 {
+                x = -x;
+            }
+            if x.abs_in_mult_group_of(n) {
+                return x;
+            }
+        }
+    }
+
+    /// Generates a random safe prime
+    pub fn generate_safe_prime(rng: &mut impl rand_core::RngCore, bits: u32) -> Self {
+        sieve_generate_safe_primes(rng, bits, 135)
+    }
+}
+
+/// Generate a random safe prime with a given sieve parameter.
+///
+/// For different bit sizes, different parameter value will give fastest
+/// generation, the higher bit size - the higher the sieve parameter.
+/// The best way to select the parameter is by trial. The one used by
+/// [`generate_safe_prime`] is indistinguishable from optimal for 500-1700 bit
+/// lengths.
+pub fn sieve_generate_safe_primes(
+    rng: &mut impl rand_core::RngCore,
+    bits: u32,
+    amount: usize,
+) -> Integer {
+    use crate::backend::IsPrime;
+    use crate::utils::small_primes;
+
+    let amount = amount.min(small_primes::SMALL_PRIMES.len());
+    let mut x = Integer::zero();
+
+    'trial: loop {
+        // generate an odd number of length `bits - 2`
+        x.assign_random_bits(bits - 1, rng);
+        // `random_bits` is guaranteed to not set `bits-1`-th bit, but not
+        // guaranteed to set the `bits-2`-th
+        x.set_bit(bits - 2, true);
+        x |= 1u32;
+
+        for &small_prime in &small_primes::SMALL_PRIMES[0..amount] {
+            let mod_result = x.mod_u(small_prime);
+            if mod_result == (small_prime - 1) / 2 {
+                continue 'trial;
+            }
+        }
+
+        // 25 taken same as one used in mpz_nextprime
+        if let IsPrime::Yes | IsPrime::Probably = x.is_probably_prime(25) {
+            x <<= 1;
+            x += 1;
+            if let IsPrime::Yes | IsPrime::Probably = x.is_probably_prime(25) {
+                return x;
+            }
+        }
+    }
+}
+
 #[cfg(feature = "serde")]
 mod serialize {
     /// Currently rug serializes the numbers into a format like
@@ -152,6 +242,47 @@ mod serialize {
             let json = r#"{"radix": 16, "value": "-ffffff"}"#;
             let num: Integer = serde_json::from_str(json).unwrap();
             assert_eq!(num, Integer::from(-0xffffff));
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::Integer;
+
+    #[test]
+    fn safe_prime_size() {
+        let mut rng = rand_dev::DevRng::new();
+        for size in [500, 512, 513, 514] {
+            let mut prime = Integer::generate_safe_prime(&mut rng, size);
+            // rug doesn't have bit length operations, so
+            prime >>= size - 1;
+            assert_eq!(prime, Integer::one());
+        }
+    }
+
+    #[test]
+    fn mult_group_check() {
+        let n = Integer::from(10);
+
+        let mult_group = [1, 3, 7, 9].map(Integer::from);
+        let not_mult_group = [0, 2, 4, 5, 6, 8, 10].map(Integer::from);
+
+        for x in mult_group {
+            assert!(x.in_mult_group_of(&n));
+            assert!(x.abs_in_mult_group_of(&n));
+            assert!((-x).abs_in_mult_group_of(&n));
+        }
+        for x in not_mult_group {
+            assert!(!x.in_mult_group_of(&n));
+            assert!(!x.abs_in_mult_group_of(&n));
+            assert!(!(-x).abs_in_mult_group_of(&n));
+        }
+        for delta in 0..15_u32 {
+            let x = &n + delta;
+            assert!(!x.in_mult_group_of(&n));
+            assert!(!x.abs_in_mult_group_of(&n));
+            assert!(!(-x).abs_in_mult_group_of(&n));
         }
     }
 }

@@ -123,7 +123,7 @@ fn encryption_with_known_factorization() {
         let x = ek.n().clone().random_below(&mut rng);
         let x = x - ek.half_n();
 
-        let nonce = utils::sample_in_mult_group(&mut rng, ek.n());
+        let nonce = Integer::sample_in_mult_group_of(&mut rng, ek.n());
 
         let enc_x1 = ek.encrypt_with(&x, &nonce).unwrap();
         let enc_x2 = dk.encrypt_with(&x, &nonce).unwrap();
@@ -136,8 +136,8 @@ fn encryption_with_known_factorization() {
 fn factorized_exp_mod_n() {
     let mut rng = rand_dev::DevRng::new();
 
-    let p = utils::generate_safe_prime(&mut rng, 512);
-    let q = utils::generate_safe_prime(&mut rng, 512);
+    let p = Integer::generate_safe_prime(&mut rng, 512);
+    let q = Integer::generate_safe_prime(&mut rng, 512);
     let n = &p * &q;
     println!("n: {n}");
 
@@ -165,8 +165,8 @@ fn factorized_exp_mod_n() {
 fn factorized_exp_mod_nn() {
     let mut rng = rand_dev::DevRng::new();
 
-    let p = utils::generate_safe_prime(&mut rng, 512);
-    let q = utils::generate_safe_prime(&mut rng, 512);
+    let p = Integer::generate_safe_prime(&mut rng, 512);
+    let q = Integer::generate_safe_prime(&mut rng, 512);
     let nn = (&p * &q).square();
     println!("nn: {nn}");
 
@@ -206,7 +206,7 @@ fn unsigned_mod_to_signed(x: Integer, n: &Integer) -> Integer {
 }
 
 fn random_key_for_tests(rng: &mut impl rand_core::RngCore) -> DecryptionKey {
-    let p = utils::generate_safe_prime(rng, 512);
-    let q = utils::generate_safe_prime(rng, 512);
+    let p = Integer::generate_safe_prime(rng, 512);
+    let q = Integer::generate_safe_prime(rng, 512);
     DecryptionKey::from_primes(p, q).unwrap()
 }
