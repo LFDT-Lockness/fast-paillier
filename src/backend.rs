@@ -26,6 +26,10 @@
 pub mod num_bigint;
 #[cfg(feature = "backend-rug")]
 pub mod rug;
+#[cfg(not(any(feature = "backend-num-bigint", feature = "backend-rug")))]
+compile_error!(
+    r#"A backend must be selected for fast-paillier: either set feature "backend-num-bigit" or "backend-rug""#
+);
 
 // num-bigint backend is used when both backends are turned on. This is useful
 // for tests and benchmarks, as one could explicitly refer to the backends by
@@ -188,6 +192,7 @@ mod serialize {
     mod test {
         use crate::backend::Integer;
 
+        #[cfg(feature = "backend-rug")]
         #[test]
         fn rug_compatible_deser_json() {
             let mut rng = rand_dev::DevRng::new();
@@ -198,6 +203,7 @@ mod serialize {
             assert_eq!(num.to_string(), num_.to_string());
         }
 
+        #[cfg(feature = "backend-rug")]
         #[test]
         fn rug_compatible_ser_json() {
             let mut rng = rand_dev::DevRng::new();
@@ -208,6 +214,7 @@ mod serialize {
             assert_eq!(num.to_string(), num_.to_string());
         }
 
+        #[cfg(feature = "backend-rug")]
         #[test]
         fn rug_compatible_deser_cbor() {
             let mut rng = rand_dev::DevRng::new();
@@ -219,6 +226,7 @@ mod serialize {
             assert_eq!(num.to_string(), num_.to_string());
         }
 
+        #[cfg(feature = "backend-rug")]
         #[test]
         fn rug_compatible_ser_cbor() {
             let mut rng = rand_dev::DevRng::new();

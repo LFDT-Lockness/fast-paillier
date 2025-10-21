@@ -1,9 +1,28 @@
 #![doc = include_str!("../README.md")]
-#![warn(missing_docs)]
+#![warn(missing_docs, unused_crate_dependencies)]
 #![cfg_attr(
     not(test),
     warn(clippy::expect_used, clippy::unwrap_used, clippy::panic)
 )]
+
+#[cfg(test)]
+mod unused_deps {
+    // Since dev-dependencies are not allowed to be optional, we have to
+    // explicitly use them to prevent unused_crate_dependencies warning
+
+    #[cfg(not(feature = "serde"))]
+    use serde_json as _;
+
+    mod test_deps {
+        use ciborium as _;
+        use rand as _;
+        use rug as _;
+    }
+    mod benchmark_deps {
+        use criterion as _;
+        use libpaillier as _;
+    }
+}
 
 pub mod backend;
 mod decryption_key;

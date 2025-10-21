@@ -10,7 +10,7 @@ env:
   RUSTFLAGS: --deny warnings
 
 jobs:
-  build-and-test:
+  build-and-test-num-bigint:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
@@ -18,9 +18,38 @@ jobs:
       with:
         cache-on-failure: "true"
     - name: Build
-      run: cargo build
+      run: |
+        cargo build --features serde
+        cargo bench --no-run --features serde
     - name: Run tests
-      run: cargo test
+      run: cargo test --features serde
+  build-and-test-rug:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: Swatinem/rust-cache@v2
+      with:
+        cache-on-failure: "true"
+    - name: Build
+      run: |
+        cargo build --no-default-features --features serde,backend-rug
+        cargo bench --no-run --no-default-features --features serde,backend-rug
+    - name: Run tests
+      run: cargo test --no-default-features --features serde,backend-rug
+
+  build-with-different-feature-sets:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: Swatinem/rust-cache@v2
+      with:
+        cache-on-failure: "true"
+    - name: Build
+      run: |
+        cargo build --no-default-features --features backend-rug
+        cargo build --no-default-features --features backend-num-bigint
+        cargo build --all-features
+
   check-fmt:
     runs-on: ubuntu-latest
     steps:
@@ -35,9 +64,9 @@ jobs:
       with:
         cache-on-failure: "true"
     - name: Run clippy
-      run: cargo clippy --all --lib -- -D clippy::all -D clippy::unwrap_used -D clippy::expect_used
+      run: "cargo clippy --all --all-features --lib -- -D clippy::all"
     - name: Run clippy tests
-      run: cargo clippy --tests -- -D clippy::all
+      run: "cargo clippy --tests --benches --all-features -- -D clippy::all"
   check-changelog:
     runs-on: ubuntu-latest
     steps:
