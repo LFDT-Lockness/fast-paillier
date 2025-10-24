@@ -674,29 +674,4 @@ mod test {
             }
         }
     }
-
-    #[cfg(feature = "backend-rug")]
-    #[test]
-    fn jacobi() {
-        use crate::backend::rug::Integer as RugInteger;
-        let mut rng = rand_dev::DevRng::new();
-
-        for _ in 0..32 {
-            let a = Integer::random_bits(16, &mut rng);
-            let mut b = Integer::random_bits(16, &mut rng);
-            b.set_bit(0, false); // make it odd
-            if b.cmp0().is_lt() {
-                b = -b;
-            }
-            b.set_bit(0, true);
-            let j = a.jacobi(&b);
-
-            let a_ = RugInteger::from_bytes_msf(&a.to_bytes_msf());
-            let a_ = if a.cmp0().is_lt() { -a_ } else { a_ };
-            let b_ = RugInteger::from_bytes_msf(&b.to_bytes_msf());
-            let j_ = a_.jacobi(&b_);
-
-            assert_eq!(j, j_);
-        }
-    }
 }

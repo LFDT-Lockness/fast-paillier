@@ -294,3 +294,210 @@ mod test {
         }
     }
 }
+
+#[cfg(all(test, feature = "backend-rug", feature = "backend-num-bigint"))]
+mod test_correspondance {
+    use super::num_bigint::Integer as NbiInteger;
+    use super::rug::Integer as RugInteger;
+
+    // Makes a test that runs the same method on rug and nbi backends, and
+    // compares the results
+    macro_rules! make_test {
+        ($method:ident $(, $($args:tt)+)?) => {
+            #[test]
+            fn $method() {
+                let mut rng = rand_dev::DevRng::new();
+
+                for _ in 0..16 {
+                    #[allow(unused_mut)]
+                    let mut nbi = NbiInteger::random_bits(267, &mut rng);
+                    #[allow(unused_mut)]
+                    let mut rug = RugInteger::from_bytes_msf(&nbi.to_bytes_msf());
+
+                    // make bindings recursively
+                    $(make_test!(@internal gen rng, $($args)+);)?
+                    let r1 = nbi.$method($($($args)*)?);
+
+                    // convert bindings recursively
+                    $(make_test!(@internal convert $($args)+);)?
+                    let r2 = rug.$method($($($args)*)?);
+
+                    r1.asserts_eq(r2);
+                }
+            }
+        };
+        (Self :: $method:ident $(, $($args:tt)+)?) => {
+            #[test]
+            fn $method() {
+                let mut rng = rand_dev::DevRng::new();
+
+                // make bindings recursively
+                $(make_test!(@internal gen rng, $($args)+);)?
+                let r1 = NbiInteger::$method($($($args)*)?);
+
+                // convert bindings recursively
+                $(make_test!(@internal convert $($args)+);)?
+                let r2 = RugInteger::$method($($($args)*)?);
+
+                r1.asserts_eq(r2)
+            }
+        };
+        // Recursion to generate code to generate random args
+        (@internal gen $rng:ident, $arg:ident $(, $($rest:tt)*)?) => {
+            let $arg = Arg::random(&mut $rng);
+            $( make_test!(@internal gen $rng, $( $rest )*); )?
+        };
+        (@internal gen $rng:ident, & $arg:ident $(, $($rest:tt)*)?) => {
+            let $arg = Arg::random(&mut $rng);
+            $( make_test!(@internal gen $rng, $( $rest )*); )?
+        };
+        (@internal gen $rng:ident, $(&)? $preprocess:ident ( $(&)? $arg:ident ) $(, $($rest:tt)*)?) => {
+            let $arg = Arg::random(&mut $rng);
+            $( make_test!(@internal gen $rng, $( $rest )*); )?
+        };
+        // Recursion to generate code to convert args from num-bigint to rug
+        (@internal convert $arg:ident $(, $($rest:tt)*)?) => {
+            let $arg = Arg::convert($arg);
+            $( make_test!(@internal convert $( $rest )*); )?
+        };
+        (@internal convert & $arg:ident $(, $($rest:tt)*)?) => {
+            let $arg = Arg::convert($arg);
+            $( make_test!(@internal convert $( $rest )*); )?
+        };
+        (@internal convert $(&)? $preprocess:ident ( $(&)? $arg:ident ) $(, $($rest:tt)*)?) => {
+            let $arg = Arg::convert($arg);
+            $( make_test!(@internal convert $( $rest )*); )?
+        };
+    }
+
+    make_test!(is_one);
+    make_test!(is_even);
+    make_test!(cmp_abs, &other);
+    make_test!(lcm_ref, &other);
+    make_test!(gcd_ref, &other);
+    make_test!(cmp0);
+    make_test!(pow_mod, &exponent, &modulo);
+    make_test!(pow_mod_ref, &exponent, &modulo);
+    make_test!(Self::u_pow_u, base, make_16_bits(exponent));
+    make_test!(square);
+    make_test!(square_ref);
+    make_test!(sqrt);
+    make_test!(sqrt_ref);
+    make_test!(modulo, &divisor);
+    make_test!(modulo_ref, &divisor);
+    // make_test!(modulo_mut, &divisor);
+    make_test!(mod_u, modulo);
+    make_test!(significant_bits);
+    make_test!(significant_dwords);
+    make_test!(invert, &modulo);
+    make_test!(invert_ref, &modulo);
+    make_test!(set_bit, make_16_bits(index), value);
+    make_test!(is_probably_prime, const_25(n));
+    make_test!(jacobi, &make_odd(&n));
+    make_test!(combine, &l, &le, &r, &re);
+
+    trait AssertsEq<Rhs> {
+        fn asserts_eq(self, rhs: Rhs);
+    }
+    impl AssertsEq<RugInteger> for NbiInteger {
+        fn asserts_eq(self, rhs: RugInteger) {
+            let lhs = RugInteger::from_bytes_msf(&self.to_bytes_msf());
+            assert_eq!(lhs, rhs);
+        }
+    }
+    impl AssertsEq<&mut RugInteger> for &mut NbiInteger {
+        fn asserts_eq(self, rhs: &mut RugInteger) {
+            let lhs = RugInteger::from_bytes_msf(&self.to_bytes_msf());
+            assert_eq!(lhs, *rhs);
+        }
+    }
+    impl AssertsEq<i32> for i32 {
+        fn asserts_eq(self, rhs: i32) {
+            assert_eq!(self, rhs);
+        }
+    }
+    impl AssertsEq<u32> for u32 {
+        fn asserts_eq(self, rhs: u32) {
+            assert_eq!(self, rhs);
+        }
+    }
+    impl AssertsEq<u64> for u64 {
+        fn asserts_eq(self, rhs: u64) {
+            assert_eq!(self, rhs);
+        }
+    }
+    impl AssertsEq<usize> for usize {
+        fn asserts_eq(self, rhs: usize) {
+            assert_eq!(self, rhs);
+        }
+    }
+    impl AssertsEq<bool> for bool {
+        fn asserts_eq(self, rhs: bool) {
+            assert_eq!(self, rhs);
+        }
+    }
+    impl AssertsEq<std::cmp::Ordering> for std::cmp::Ordering {
+        fn asserts_eq(self, rhs: std::cmp::Ordering) {
+            assert_eq!(self, rhs);
+        }
+    }
+    impl AssertsEq<super::IsPrime> for super::IsPrime {
+        fn asserts_eq(self, rhs: super::IsPrime) {
+            assert_eq!(self, rhs);
+        }
+    }
+    impl AssertsEq<Option<RugInteger>> for Option<NbiInteger> {
+        fn asserts_eq(self, rhs: Option<RugInteger>) {
+            let lhs = self.map(|x| RugInteger::from_bytes_msf(&x.to_bytes_msf()));
+            assert_eq!(lhs, rhs);
+        }
+    }
+
+    trait Arg {
+        type Iso;
+        fn random(rng: &mut rand_dev::DevRng) -> Self;
+        fn convert(self) -> Self::Iso;
+    }
+    impl Arg for NbiInteger {
+        type Iso = RugInteger;
+        fn random(rng: &mut rand_dev::DevRng) -> Self {
+            NbiInteger::random_bits(267, rng)
+        }
+        fn convert(self) -> Self::Iso {
+            RugInteger::from_bytes_msf(&self.to_bytes_msf())
+        }
+    }
+    impl Arg for u32 {
+        type Iso = Self;
+        fn random(rng: &mut rand_dev::DevRng) -> Self {
+            rand::Rng::gen(rng)
+        }
+        fn convert(self) -> Self {
+            self
+        }
+    }
+    impl Arg for bool {
+        type Iso = Self;
+        fn random(rng: &mut rand_dev::DevRng) -> Self {
+            rand::Rng::gen(rng)
+        }
+        fn convert(self) -> Self {
+            self
+        }
+    }
+
+    fn make_odd<T>(x: &T) -> T
+    where
+        T: Clone + std::ops::BitOrAssign<u32>,
+    {
+        let mut x = x.clone();
+        x |= 1;
+        x
+    }
+    fn make_16_bits(x: u32) -> u32 {
+        x >> 16
+    }
+    fn const_25(_: u32) -> u32 {
+        25
+    }
+}
