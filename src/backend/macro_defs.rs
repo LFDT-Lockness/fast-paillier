@@ -131,6 +131,11 @@ macro_rules! make_assign {
                 self.0.$method(rhs.0)
             }
         }
+        impl std::ops::$class<&$type> for $type {
+            fn $method(&mut self, rhs: &$type) {
+                self.0.$method(&rhs.0)
+            }
+        }
         $crate::backend::macro_defs::make_assign_for_primitive!($type, $class, $method, i8);
         $crate::backend::macro_defs::make_assign_for_primitive!($type, $class, $method, u8);
         $crate::backend::macro_defs::make_assign_for_primitive!($type, $class, $method, i16);

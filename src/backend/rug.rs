@@ -140,11 +140,19 @@ impl Integer {
     pub fn square_ref(&self) -> Self {
         Integer(self.0.square_ref().complete())
     }
-    pub fn sqrt(self) -> Self {
-        Integer(self.0.sqrt())
+    pub fn sqrt(self) -> Option<Self> {
+        if self.cmp0().is_lt() {
+            None
+        } else {
+            Some(Integer(self.0.sqrt()))
+        }
     }
-    pub fn sqrt_ref(&self) -> Self {
-        Integer(self.0.sqrt_ref().complete())
+    pub fn sqrt_ref(&self) -> Option<Self> {
+        if self.cmp0().is_lt() {
+            None
+        } else {
+            Some(Integer(self.0.sqrt_ref().complete()))
+        }
     }
 
     pub fn modulo(self, divisor: &Self) -> Self {

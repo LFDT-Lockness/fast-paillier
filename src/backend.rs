@@ -393,8 +393,8 @@ mod test_correspondance {
     make_test!(Self::u_pow_u, base, make_16_bits(exponent));
     make_test!(square);
     make_test!(square_ref);
-    // make_test!(sqrt);
-    // make_test!(sqrt_ref);
+    make_test!(sqrt);
+    make_test!(sqrt_ref);
     make_test!(modulo, &divisor);
     make_test!(modulo_ref, &divisor);
     make_test!(modulo_mut, &divisor);

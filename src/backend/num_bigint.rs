@@ -154,11 +154,15 @@ impl Integer {
     pub fn square_ref(&self) -> Self {
         self * self
     }
-    pub fn sqrt(self) -> Self {
+    pub fn sqrt(self) -> Option<Self> {
         self.sqrt_ref()
     }
-    pub fn sqrt_ref(&self) -> Self {
-        Integer(self.0.sqrt())
+    pub fn sqrt_ref(&self) -> Option<Self> {
+        if self.cmp0().is_lt() {
+            None
+        } else {
+            Some(Integer(self.0.sqrt()))
+        }
     }
 
     pub fn modulo(self, divisor: &Self) -> Self {
@@ -230,10 +234,7 @@ impl Integer {
         } else {
             num_bigint::Sign::Plus
         };
-        Integer(num_bigint::BigInt::from_biguint(
-            sign,
-            uint,
-        ))
+        Integer(num_bigint::BigInt::from_biguint(sign, uint))
     }
 
     pub fn assign_random_below(&mut self, modulo: &Self, rng: &mut impl rand_core::RngCore) {
