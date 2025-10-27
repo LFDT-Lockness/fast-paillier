@@ -38,7 +38,7 @@ impl Integer {
     ///
     /// ## Example
     /// ```rust
-    /// # use fast_paillier::backend::{rug::Integer, Sign};
+    /// # use fast_paillier::backend::{num_bigint::Integer, Sign};
     /// let x = Integer::from(-0x11223344);
     /// assert_eq!(x.to_bytes_msf_signed(), (vec![0x11, 0x22, 0x33, 0x44],
     /// Sign::Negative));
