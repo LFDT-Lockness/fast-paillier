@@ -22,6 +22,8 @@
 //!
 //! When both features are enabled at once, num-bigint is used
 
+pub(crate) mod macro_defs;
+
 #[cfg(feature = "backend-num-bigint")]
 pub mod num_bigint;
 #[cfg(feature = "backend-rug")]
