@@ -32,9 +32,31 @@ impl Integer {
     pub fn to_bytes_msf(&self) -> Vec<u8> {
         self.0.to_digits(rug::integer::Order::Msf)
     }
+    /// Converts to bytes, with bytes representing _most_ significant base256
+    /// digits appearing first
+    ///
+    /// ## Example
+    /// ```rust
+    /// # use fast_paillier::backend::{rug::Integer, Sign};
+    /// let x = Integer::from(-0x11223344);
+    /// assert_eq!(x.to_bytes_msf_signed(), (vec![0x11, 0x22, 0x33, 0x44],
+    /// Sign::Negative));
+    /// ```
+    pub fn to_bytes_msf_signed(&self) -> (Vec<u8>, super::Sign) {
+        (self.0.to_digits(rug::integer::Order::Msf), self.sign())
+    }
     /// Converts bytes to Integer. Inverse of [`Integer::to_bytes_msf`]
     pub fn from_bytes_msf(bytes: &[u8]) -> Self {
         Integer(rug::Integer::from_digits(bytes, rug::integer::Order::Msf))
+    }
+    /// Converts bytes to Integer. Inverse of [`Integer::to_bytes_msf_signed`]
+    pub fn from_bytes_msf_signed(bytes: &[u8], sign: super::Sign) -> Self {
+        let r = Integer(rug::Integer::from_digits(bytes, rug::integer::Order::Msf));
+        if sign == super::Sign::Negative {
+            -r
+        } else {
+            r
+        }
     }
     /// Returns a string representation of the number for the specified radix
     pub fn to_str_radix(&self, radix: u16) -> String {
@@ -92,6 +114,12 @@ impl Integer {
     pub fn cmp0(&self) -> std::cmp::Ordering {
         self.0.cmp0()
     }
+    pub fn sign(&self) -> super::Sign {
+        match self.cmp0() {
+            std::cmp::Ordering::Less => super::Sign::Negative,
+            _ => super::Sign::Nonnegative,
+        }
+    }
 
     pub fn pow_mod(self, exponent: &Self, modulo: &Self) -> Option<Self> {
         self.0.pow_mod(&exponent.0, &modulo.0).map(Integer).ok()
@@ -125,8 +153,9 @@ impl Integer {
     pub fn modulo_ref(&self, divisor: &Self) -> Self {
         Integer(self.0.modulo_ref(&divisor.0).complete())
     }
-    pub fn modulo_mut(&mut self, divisor: &Self) {
-        self.0.modulo_mut(&divisor.0)
+    pub fn modulo_mut(&mut self, divisor: &Self) -> &mut Self {
+        self.0.modulo_mut(&divisor.0);
+        self
     }
     pub fn mod_u(&self, modulo: u32) -> u32 {
         self.0.mod_u(modulo)
@@ -165,6 +194,16 @@ impl Integer {
     pub fn random_bits(bits: u32, rng: &mut impl rand_core::RngCore) -> Self {
         let mut rng = external_rand(rng);
         Integer(rug::Integer::random_bits(bits, &mut rng).complete())
+    }
+    pub fn random_bits_signed(bits: u32, rng: &mut impl rand_core::RngCore) -> Self {
+        let mut rng = external_rand(rng);
+        let r = rug::Integer::random_bits(bits, &mut rng).complete();
+        let negative = rng.bits(1);
+        if negative == 0 {
+            Integer(r)
+        } else {
+            Integer(-r)
+        }
     }
 
     pub fn assign_random_below(&mut self, modulo: &Self, rng: &mut impl rand_core::RngCore) {

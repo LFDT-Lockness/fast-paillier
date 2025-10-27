@@ -33,12 +33,37 @@ impl Integer {
     pub fn to_bytes_msf(&self) -> Vec<u8> {
         self.0.to_bytes_be().1
     }
+    /// Converts to bytes, with bytes representing _most_ significant base256
+    /// digits appearing first
+    ///
+    /// ## Example
+    /// ```rust
+    /// # use fast_paillier::backend::{rug::Integer, Sign};
+    /// let x = Integer::from(-0x11223344);
+    /// assert_eq!(x.to_bytes_msf_signed(), (vec![0x11, 0x22, 0x33, 0x44],
+    /// Sign::Negative));
+    /// ```
+    pub fn to_bytes_msf_signed(&self) -> (Vec<u8>, super::Sign) {
+        (self.0.to_bytes_be().1, self.sign())
+    }
     /// Converts bytes to Integer. Inverse of [`Integer::to_bytes_msf`]
     pub fn from_bytes_msf(bytes: &[u8]) -> Self {
         Integer(num_bigint::BigInt::from_bytes_be(
             num_bigint::Sign::Plus,
             bytes,
         ))
+    }
+    /// Converts bytes to Integer. Inverse of [`Integer::to_bytes_msf_signed`]
+    pub fn from_bytes_msf_signed(bytes: &[u8], sign: super::Sign) -> Self {
+        let r = Integer(num_bigint::BigInt::from_bytes_be(
+            num_bigint::Sign::Plus,
+            bytes,
+        ));
+        if sign == super::Sign::Negative {
+            -r
+        } else {
+            r
+        }
     }
     /// Returns a string representation of the number for the specified radix
     pub fn to_str_radix(&self, radix: u16) -> String {
@@ -100,6 +125,12 @@ impl Integer {
             num_bigint::Sign::Minus => std::cmp::Ordering::Less,
         }
     }
+    pub fn sign(&self) -> super::Sign {
+        match self.0.sign() {
+            num_bigint::Sign::Minus => super::Sign::Negative,
+            _ => super::Sign::Nonnegative,
+        }
+    }
 
     pub fn pow_mod(self, exponent: &Self, modulo: &Self) -> Option<Self> {
         self.pow_mod_ref(exponent, modulo)
@@ -136,8 +167,9 @@ impl Integer {
     pub fn modulo_ref(&self, divisor: &Self) -> Self {
         Integer(num_traits::Euclid::rem_euclid(&self.0, &divisor.0))
     }
-    pub fn modulo_mut(&mut self, divisor: &Self) {
+    pub fn modulo_mut(&mut self, divisor: &Self) -> &mut Self {
         self.0 = num_traits::Euclid::rem_euclid(&self.0, &divisor.0);
+        self
     }
     pub fn mod_u(&self, modulo: u32) -> u32 {
         let big = num_traits::Euclid::rem_euclid(&self.0, &num_bigint::BigInt::from(modulo));
@@ -186,6 +218,20 @@ impl Integer {
         let uint = rand::distributions::Distribution::sample(&dist, rng);
         Integer(num_bigint::BigInt::from_biguint(
             num_bigint::Sign::Plus,
+            uint,
+        ))
+    }
+    pub fn random_bits_signed(bits: u32, rng: &mut impl rand_core::RngCore) -> Self {
+        let dist = num_bigint::RandomBits::new(bits.into());
+        let uint = rand::distributions::Distribution::sample(&dist, rng);
+        let negative = rand::Rng::gen(rng);
+        let sign = if negative {
+            num_bigint::Sign::Minus
+        } else {
+            num_bigint::Sign::Plus
+        };
+        Integer(num_bigint::BigInt::from_biguint(
+            sign,
             uint,
         ))
     }
