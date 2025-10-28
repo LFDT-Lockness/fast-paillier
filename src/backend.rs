@@ -480,7 +480,7 @@ mod test_correspondance {
         fn asserts_eq(self, rhs: super::IsPrime) {
             use super::IsPrime::*;
             match (self, rhs) {
-                (No | Probably, No | Probably) => (),
+                (No, No) => (),
                 (Yes | Probably, Yes | Probably) => (),
                 _ => panic!("Assertion failed: IsPrime not matching: {self:?} and {rhs:?}"),
             }

@@ -227,6 +227,9 @@ impl Integer {
     }
 
     pub fn is_probably_prime(&self, reps: u32) -> IsPrime {
+        if self.cmp0().is_le() {
+            return IsPrime::No;
+        }
         let r = self.0.is_probably_prime(reps);
         match r {
             rug::integer::IsPrime::No => IsPrime::No,
