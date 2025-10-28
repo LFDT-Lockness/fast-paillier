@@ -117,7 +117,7 @@ impl Integer {
     pub fn sign(&self) -> super::Sign {
         match self.cmp0() {
             std::cmp::Ordering::Less => super::Sign::Negative,
-            _ => super::Sign::Nonnegative,
+            _ => super::Sign::NonNegative,
         }
     }
 

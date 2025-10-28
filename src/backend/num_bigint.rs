@@ -128,7 +128,7 @@ impl Integer {
     pub fn sign(&self) -> super::Sign {
         match self.0.sign() {
             num_bigint::Sign::Minus => super::Sign::Negative,
-            _ => super::Sign::Nonnegative,
+            _ => super::Sign::NonNegative,
         }
     }
 

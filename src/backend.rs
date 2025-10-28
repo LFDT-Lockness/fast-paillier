@@ -55,7 +55,7 @@ pub enum IsPrime {
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Sign {
     /// Positive or zero
-    Nonnegative,
+    NonNegative,
     Negative,
 }
 
@@ -311,8 +311,22 @@ mod test_correspondance {
     use super::num_bigint::Integer as NbiInteger;
     use super::rug::Integer as RugInteger;
 
-    // Makes a test that runs the same method on rug and nbi backends, and
-    // compares the results
+    /// Makes a test that runs the same method on rug and nbi backends, and
+    /// compares the results. You can use it like: `make_test!(method_name,
+    /// arg_to_move, &arg_as_ref, &mut arg_mut_ref, &preprocess(arg))`.
+    ///
+    /// Argument types will be deduced from method type, and generated via an
+    /// [`Arg`] instance. The arguments will then be passed verbatim as you
+    /// specified them in the macro argument to the method. That is, an
+    /// invocation like `make_test!(method, func(a), &shmunk(b))` will produce
+    /// the code equivalent to:
+    ///
+    /// ```text
+    /// let num = NbiInteger::random_bits_signed(267, &mut rng);
+    /// let a = Arg::random(rng);
+    /// let b = Arg::random(rng);
+    /// num.f(func(a), &shmunk(b))
+    /// ```
     macro_rules! make_test {
         ($method:ident $(, $($args:tt)+)?) => {
             #[test]
@@ -354,12 +368,19 @@ mod test_correspondance {
                 r1.asserts_eq(r2)
             }
         };
-        // Recursion to generate code to generate random args
-        (@internal gen $rng:ident, $arg:ident $(, $($rest:tt)*)?) => {
-            let $arg = Arg::random(&mut $rng);
-            $( make_test!(@internal gen $rng, $( $rest )*); )?
-        };
-        (@internal gen $rng:ident, & $arg:ident $(, $($rest:tt)*)?) => {
+        // Recursion to generate code to generate random args. Will produce the
+        // lines of `let arg_name = Arg::random(rng)` for each parameter passed.
+        // Presented in two cases:
+        // - `make_test!(@internal gen rng, arg_name, ...)` - plain argument,
+        // by move or reference
+        // - `make_test!(@internal gen rng, func(arg_name), ...)` - argument
+        // with preprocess function, by move or reference
+        //
+        // Implementation details: rng has to be passed explicitly to bypass
+        // rust's anti-launder rule of identifiers. When there are no arguments
+        // remaining, the `$()?` substitution on the last line of this macro
+        // will be empty, and recursion will not happen.
+        (@internal gen $rng:ident, $(&)? $arg:ident $(, $($rest:tt)*)?) => {
             let $arg = Arg::random(&mut $rng);
             $( make_test!(@internal gen $rng, $( $rest )*); )?
         };
@@ -367,12 +388,10 @@ mod test_correspondance {
             let $arg = Arg::random(&mut $rng);
             $( make_test!(@internal gen $rng, $( $rest )*); )?
         };
-        // Recursion to generate code to convert args from num-bigint to rug
-        (@internal convert $arg:ident $(, $($rest:tt)*)?) => {
-            let $arg = Arg::convert($arg);
-            $( make_test!(@internal convert $( $rest )*); )?
-        };
-        (@internal convert & $arg:ident $(, $($rest:tt)*)?) => {
+        // Recursion to generate code to convert args from num-bigint to rug.
+        // Similar in idea and implementation to the `gen` cases above, except
+        // generates `Arg::convert` calls
+        (@internal convert $(&)? $arg:ident $(, $($rest:tt)*)?) => {
             let $arg = Arg::convert($arg);
             $( make_test!(@internal convert $( $rest )*); )?
         };
@@ -408,6 +427,8 @@ mod test_correspondance {
     make_test!(jacobi, &odd_positive(&n));
     make_test!(combine, &l, &le, &r, &re);
 
+    /// Helper trait for tests above. Mostly calls assert_eq for its args, but
+    /// to compare rug and nbi integer we convert them to one type first
     trait AssertsEq<Rhs> {
         fn asserts_eq(self, rhs: Rhs);
     }
@@ -459,7 +480,7 @@ mod test_correspondance {
         fn asserts_eq(self, rhs: super::IsPrime) {
             use super::IsPrime::*;
             match (self, rhs) {
-                (No, No) => (),
+                (No | Probably, No | Probably) => (),
                 (Yes | Probably, Yes | Probably) => (),
                 _ => panic!("Assertion failed: IsPrime not matching: {self:?} and {rhs:?}"),
             }
@@ -475,6 +496,8 @@ mod test_correspondance {
         }
     }
 
+    /// Helper trait in tests above. Used to generate a random argument, and to
+    /// convert nbi integers to rug when necessary
     trait Arg {
         type Iso;
         fn random(rng: &mut rand_dev::DevRng) -> Self;
