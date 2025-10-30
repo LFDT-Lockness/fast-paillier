@@ -107,6 +107,10 @@ impl Integer {
         self.0.is_even()
     }
 
+    pub fn abs(self) -> Self {
+        let (_sign, val) = self.0.into_parts();
+        Self(num_bigint::BigInt::from(val))
+    }
     pub fn cmp_abs(&self, other: &Self) -> std::cmp::Ordering {
         self.0.magnitude().cmp(other.0.magnitude())
     }
@@ -410,5 +414,13 @@ mod test {
                 assert_ne!(x_, x);
             }
         }
+    }
+}
+
+impl quickcheck::Arbitrary for Integer {
+    fn arbitrary(g: &mut quickcheck::Gen) -> Self {
+        let bytes = Vec::<u8>::arbitrary(g);
+        let sign = super::Sign::arbitrary(g);
+        Integer::from_bytes_msf_signed(&bytes, sign)
     }
 }

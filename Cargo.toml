@@ -27,9 +27,13 @@ thiserror = "1"
 
 serde = { version = "1", optional = true, features = ["derive"] }
 
+# XXX
+quickcheck = { version = "1" }
+
 [dev-dependencies]
 rand_dev = "0.1"
 rand = { version = "0.8", default-features = false }
+quickcheck = { version = "1" }
 
 # Used to test serialization when serde is enabled
 rug = { version = "1.24", default-features = false, features = ["std", "integer", "rand", "serde"] }

@@ -1,6 +1,9 @@
 use fast_paillier::{backend::Integer, utils, DecryptionKey};
 use rand::Rng;
 
+#[cfg(all(feature = "backend-rug", feature = "backend-num-bigint"))]
+mod backend;
+
 #[test]
 fn encrypt_decrypt() {
     let mut rng = rand_dev::DevRng::new();

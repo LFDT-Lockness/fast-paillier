@@ -100,6 +100,9 @@ impl Integer {
         self.0.is_even()
     }
 
+    pub fn abs(self) -> Self {
+        Self(self.0.abs())
+    }
     pub fn cmp_abs(&self, other: &Self) -> std::cmp::Ordering {
         self.0.cmp_abs(&other.0)
     }
