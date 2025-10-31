@@ -1,26 +1,20 @@
+//! Test that all deterministic methods of both integer backends produces
+//! identical results. We use quickcheck to test it for every method. For
+//! brevity, the quickcheck properties to test are defined as macros
+
 use fast_paillier::backend::num_bigint::Integer as NbiInteger;
 use fast_paillier::backend::rug::Integer as RugInteger;
 use fast_paillier::backend::IsPrime;
 
-#[test]
-fn negative_power() {
-    let m_nbi = NbiInteger::from(-10);
-    let x_nbi = NbiInteger::from(1);
-    let e_nbi = NbiInteger::from(-6);
-    let r_nbi = x_nbi.pow_mod(&e_nbi, &m_nbi);
-
-    let m_rug = RugInteger::from(-10);
-    let x_rug = RugInteger::from(1);
-    let e_rug = RugInteger::from(-6);
-    let r_rug = x_rug.pow_mod(&e_rug, &m_rug);
-
-    assert!(AssertsEq::asserts_eq(r_nbi, r_rug));
-}
-
+/// Generates a quickcheck test for a given method. Uses [`Arg`] to convert the
+/// arguments to either num-bigint or rug compatible, and uses [`HeteroEq`] to
+/// compare resulting values
 macro_rules! make_quickcheck {
-    ($method:ident ( self: $self_ty:ty $($(, $arg:ident: $t:ty)+)? ) ) => {
+    // Case for normal methods. Called like `make_quickcheck!(method_name(self:
+    // T1, arg: T2, arg2: T3))`
+    ($method:ident ( self: $self_ty:ty $(, $arg:ident: $t:ty)* $(,)? ) ) => {
         quickcheck::quickcheck! {
-            fn $method(nbi: $self_ty $($(, $arg: $t)+)?) -> bool {
+            fn $method(nbi: $self_ty $(, $arg: $t)*) -> bool {
                 #[allow(unused_mut)]
                 let mut nbi = NbiInteger::from(nbi);
                 let (bytes, sign) = nbi.to_bytes_msf_signed();
@@ -28,20 +22,25 @@ macro_rules! make_quickcheck {
                 let mut rug = RugInteger::from_bytes_msf_signed(&bytes, sign);
 
                 let r1 = nbi.$method(
-                    $($(
+                    $(
                         Arg::to_nbi( &$arg ),
-                    )+)?
+                    )*
                 );
                 let r2 = rug.$method(
-                    $($(
+                    $(
                         Arg::to_rug( &$arg ),
-                    )+)?
+                    )*
                 );
 
-                r1.asserts_eq(r2)
+                r1.equals(r2)
             }
         }
     };
+    // Case for static methods. Called like `make_quickcheck!(Self::method_name(
+    // arg: T2, arg2: T3))`
+    //
+    // Have to separate $arg and $args as the quickcheck macro doesn't support
+    // trailing comma
     (Self :: $method:ident($arg:ident: $t:ty $(, $args:ident: $ts:ty)*)) => {
         quickcheck::quickcheck! {
             fn $method($arg: $t $(, $args: $ts)*) -> bool {
@@ -59,7 +58,7 @@ macro_rules! make_quickcheck {
                 );
 
                 eprintln!("asserting eq {r1}, {r2}");
-                r1.asserts_eq(r2)
+                r1.equals(r2)
             }
         }
     };
@@ -71,8 +70,12 @@ make_quickcheck!(cmp_abs(self: NbiInteger, other: RefInteger));
 make_quickcheck!(lcm_ref(self: NbiInteger, other: RefInteger));
 make_quickcheck!(gcd_ref(self: NbiInteger, other: RefInteger));
 make_quickcheck!(cmp0(self: NbiInteger));
-make_quickcheck!(pow_mod(self: NbiInteger, exponent: RefInteger, modulo: NonZero<RefInteger>));
-make_quickcheck!(pow_mod_ref(self: NbiInteger, exponent: RefInteger, modulo: NonZero<RefInteger>));
+make_quickcheck!(
+    pow_mod(self: NbiInteger, exponent: RefInteger, modulo: NonZero<RefInteger>)
+);
+make_quickcheck!(
+    pow_mod_ref(self: NbiInteger, exponent: RefInteger, modulo: NonZero<RefInteger>)
+);
 make_quickcheck!(Self::u_pow_u(base: u32, exponent: SmallU32));
 make_quickcheck!(square(self: NbiInteger));
 make_quickcheck!(square_ref(self: NbiInteger));
@@ -89,31 +92,42 @@ make_quickcheck!(invert_ref(self: NbiInteger, modulo: Positive<RefInteger>));
 make_quickcheck!(set_bit(self: NbiInteger, index: SmallU32, value: bool));
 make_quickcheck!(is_probably_prime(self: NbiInteger, const25: Const25));
 make_quickcheck!(jacobi(self: NbiInteger, n: OddPositive));
-make_quickcheck!(combine(self: NonZero<NbiInteger>, l: RefInteger, le: RefInteger, r: RefInteger, re: RefInteger));
+make_quickcheck!(
+    combine(
+        self: NonZero<NbiInteger>,
+        l: RefInteger,
+        le: RefInteger,
+        r: RefInteger,
+        re: RefInteger,
+    )
+);
 
-/// Helper trait for tests above. Mostly calls assert_eq for its args, but
-/// to compare rug and nbi integer we convert them to one type first
-trait AssertsEq<Rhs> {
-    fn asserts_eq(self, rhs: Rhs) -> bool;
+///// Helper traits for macro /////
+
+/// Helper trait for tests above, to compare the results when they are of
+/// different types: nbi int and rug int. Will convert the results to one type
+/// before comparing them
+trait HeteroEq<Rhs> {
+    fn equals(self, rhs: Rhs) -> bool;
 }
-impl AssertsEq<RugInteger> for NbiInteger {
-    fn asserts_eq(self, rhs: RugInteger) -> bool {
+impl HeteroEq<RugInteger> for NbiInteger {
+    fn equals(self, rhs: RugInteger) -> bool {
         let (bytes, sign) = self.to_bytes_msf_signed();
         let lhs = RugInteger::from_bytes_msf_signed(&bytes, sign);
         eprintln!("{lhs} != {rhs}");
         lhs == rhs
     }
 }
-impl AssertsEq<&mut RugInteger> for &mut NbiInteger {
-    fn asserts_eq(self, rhs: &mut RugInteger) -> bool {
+impl HeteroEq<&mut RugInteger> for &mut NbiInteger {
+    fn equals(self, rhs: &mut RugInteger) -> bool {
         let (bytes, sign) = self.to_bytes_msf_signed();
         let lhs = RugInteger::from_bytes_msf_signed(&bytes, sign);
         eprintln!("{lhs} != {rhs}");
         lhs == *rhs
     }
 }
-impl AssertsEq<IsPrime> for IsPrime {
-    fn asserts_eq(self, rhs: IsPrime) -> bool {
+impl HeteroEq<IsPrime> for IsPrime {
+    fn equals(self, rhs: IsPrime) -> bool {
         use IsPrime::*;
         match (self, rhs) {
             (No, No) => true,
@@ -125,8 +139,8 @@ impl AssertsEq<IsPrime> for IsPrime {
         }
     }
 }
-impl AssertsEq<Option<RugInteger>> for Option<NbiInteger> {
-    fn asserts_eq(self, rhs: Option<RugInteger>) -> bool {
+impl HeteroEq<Option<RugInteger>> for Option<NbiInteger> {
+    fn equals(self, rhs: Option<RugInteger>) -> bool {
         let lhs = self.map(|x| {
             let (bytes, sign) = x.to_bytes_msf_signed();
             RugInteger::from_bytes_msf_signed(&bytes, sign)
@@ -136,11 +150,11 @@ impl AssertsEq<Option<RugInteger>> for Option<NbiInteger> {
     }
 }
 
-macro_rules! trivial_assertion {
+macro_rules! trivial_equality {
     ( $($t:ty,)+ ) => {
         $(
-            impl AssertsEq <$t> for $t {
-                fn asserts_eq(self, rhs: $t) -> bool {
+            impl HeteroEq <$t> for $t {
+                fn equals(self, rhs: $t) -> bool {
                     eprintln!("{self:?} != {rhs:?}");
                     self == rhs
                 }
@@ -148,7 +162,7 @@ macro_rules! trivial_assertion {
         )+
     }
 }
-trivial_assertion! {
+trivial_equality! {
     bool,
     std::cmp::Ordering,
     u32,
@@ -157,6 +171,9 @@ trivial_assertion! {
     i32,
 }
 
+/// Helper trait to generate and convert values for quickcheck. Most methods
+/// accept only the integers of matching type: nbi or rug, and this trait is
+/// used to select the correct one
 trait Arg<'a> {
     type NbiArg;
     type RugArg;
@@ -165,7 +182,7 @@ trait Arg<'a> {
     fn to_rug(&'a self) -> Self::RugArg;
 }
 
-macro_rules! trivial_args {
+macro_rules! trivial_arg {
     ( $($t:ty,)+ ) => {
         $(
             impl Arg<'_> for $t {
@@ -181,11 +198,15 @@ macro_rules! trivial_args {
         )+
     }
 }
-trivial_args! {
+trivial_arg! {
     u32,
     bool,
 }
 
+///// Newtypes for quickcheck's Arbitrary /////
+
+/// Helper quickcheck newtype: generates a big integer, and passes it as [`Arg`]
+/// by reference instead of by value
 #[derive(Clone, PartialEq, PartialOrd)]
 struct RefInteger(NbiInteger, RugInteger);
 impl<'a> Arg<'a> for RefInteger {
@@ -206,7 +227,6 @@ impl quickcheck::Arbitrary for RefInteger {
         RefInteger(nbi, rug)
     }
 }
-
 impl std::fmt::Debug for RefInteger {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.0.fmt(f)
@@ -221,6 +241,8 @@ impl From<u8> for RefInteger {
     }
 }
 
+/// Helper quickcheck newtype. Similar to [`RefInteger`], but generates integers
+/// that are odd and larger than 2 (to be used as an argument to `jacobi`)
 #[derive(Clone, Debug)]
 struct OddPositive(NbiInteger, RugInteger);
 impl<'a> Arg<'a> for OddPositive {
@@ -251,6 +273,8 @@ impl quickcheck::Arbitrary for OddPositive {
     }
 }
 
+/// Helper quickcheck newtype: generates a u32 that is small enough to be used
+/// as a bit index or a (non-modular) exponent
 #[derive(Clone, Copy, Debug)]
 struct SmallU32(u32);
 impl Arg<'_> for SmallU32 {
@@ -282,6 +306,8 @@ impl quickcheck::Arbitrary for SmallU32 {
     }
 }
 
+/// Helper quickcheck newtype: generates a constant 25 u32. Convenient for the
+/// macros above, since they don't accept constant values
 #[derive(Clone, Debug)]
 struct Const25;
 impl Arg<'_> for Const25 {
@@ -300,6 +326,7 @@ impl quickcheck::Arbitrary for Const25 {
     }
 }
 
+/// Helper quickcheck newtype: generates a non-zero integral value
 #[derive(Clone, Debug)]
 struct NonZero<T>(T);
 impl<'a, T: Arg<'a>> Arg<'a> for NonZero<T> {
@@ -314,9 +341,7 @@ impl<'a, T: Arg<'a>> Arg<'a> for NonZero<T> {
 }
 impl<T> quickcheck::Arbitrary for NonZero<T>
 where
-    T: quickcheck::Arbitrary,
-    T: From<u8>,
-    T: PartialEq,
+    T: quickcheck::Arbitrary + From<u8> + PartialEq,
 {
     fn arbitrary(g: &mut quickcheck::Gen) -> Self {
         let zero = T::from(0u8);
@@ -335,6 +360,7 @@ impl From<NonZero<NbiInteger>> for NbiInteger {
     }
 }
 
+/// Helper quickcheck newtype: generates a strictly positive integral value
 #[derive(Clone, Debug)]
 struct Positive<T>(T);
 impl<'a, T: Arg<'a>> Arg<'a> for Positive<T> {

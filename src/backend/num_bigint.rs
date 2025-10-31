@@ -371,6 +371,27 @@ fn last_limb(x: &num_bigint::BigInt) -> u32 {
     x.magnitude().iter_u32_digits().next().unwrap_or(0)
 }
 
+#[cfg(feature = "quickcheck")]
+impl quickcheck::Arbitrary for Integer {
+    fn arbitrary(g: &mut quickcheck::Gen) -> Self {
+        let bytes = Vec::<u8>::arbitrary(g);
+        let sign = super::Sign::arbitrary(g);
+        Integer::from_bytes_msf_signed(&bytes, sign)
+    }
+
+    fn shrink(&self) -> Box<dyn Iterator<Item = Self>> {
+        let mut prev = self.clone();
+        Box::new(std::iter::from_fn(move || {
+            if prev.cmp0().is_eq() {
+                None
+            } else {
+                prev >>= 1;
+                Some(prev.clone())
+            }
+        }))
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::Integer;
@@ -426,25 +447,5 @@ mod test {
                 assert_ne!(x_, x);
             }
         }
-    }
-}
-
-impl quickcheck::Arbitrary for Integer {
-    fn arbitrary(g: &mut quickcheck::Gen) -> Self {
-        let bytes = Vec::<u8>::arbitrary(g);
-        let sign = super::Sign::arbitrary(g);
-        Integer::from_bytes_msf_signed(&bytes, sign)
-    }
-
-    fn shrink(&self) -> Box<dyn Iterator<Item = Self>> {
-        let mut prev = self.clone();
-        Box::new(std::iter::from_fn(move || {
-            if prev.cmp0().is_eq() {
-                None
-            } else {
-                prev >>= 1;
-                Some(prev.clone())
-            }
-        }))
     }
 }

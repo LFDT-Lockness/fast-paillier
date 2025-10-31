@@ -1,7 +1,11 @@
 use fast_paillier::{backend::Integer, utils, DecryptionKey};
 use rand::Rng;
 
-#[cfg(all(feature = "backend-rug", feature = "backend-num-bigint"))]
+#[cfg(all(
+    feature = "backend-rug",
+    feature = "backend-num-bigint",
+    feature = "quickcheck"
+))]
 mod backend;
 
 #[test]

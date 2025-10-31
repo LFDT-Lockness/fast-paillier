@@ -26,14 +26,13 @@ rand_core = "0.6"
 thiserror = "1"
 
 serde = { version = "1", optional = true, features = ["derive"] }
+quickcheck = { version = "1", optional = true, default-features = false }
 
-# XXX
-quickcheck = { version = "1" }
 
 [dev-dependencies]
 rand_dev = "0.1"
 rand = { version = "0.8", default-features = false }
-quickcheck = { version = "1" }
+quickcheck = { version = "1", default-features = false }
 
 # Used to test serialization when serde is enabled
 rug = { version = "1.24", default-features = false, features = ["std", "integer", "rand", "serde"] }
@@ -48,6 +47,8 @@ libpaillier = { version = "0.5", default-features = false, features = ["gmp"] }
 default = ["backend-num-bigint"]
 
 serde = ["dep:serde"]
+quickcheck = ["dep:quickcheck"]
+
 backend-rug = ["dep:rug", "dep:bytemuck"]
 backend-num-bigint = ["dep:num-bigint", "dep:num-traits", "dep:num-integer", "dep:glass_pumpkin", "dep:rand"]
 

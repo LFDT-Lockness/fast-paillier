@@ -284,3 +284,24 @@ pub fn external_rand(rng: &mut impl rand_core::RngCore) -> rug::rand::ThreadRand
 
     rug::rand::ThreadRandState::new_custom(ExternalRand::wrap_mut(rng))
 }
+
+#[cfg(feature = "quickcheck")]
+impl quickcheck::Arbitrary for Integer {
+    fn arbitrary(g: &mut quickcheck::Gen) -> Self {
+        let bytes = Vec::<u8>::arbitrary(g);
+        let sign = super::Sign::arbitrary(g);
+        Integer::from_bytes_msf_signed(&bytes, sign)
+    }
+
+    fn shrink(&self) -> Box<dyn Iterator<Item = Self>> {
+        let mut prev = self.clone();
+        Box::new(std::iter::from_fn(move || {
+            if prev.cmp0().is_eq() {
+                None
+            } else {
+                prev >>= 1;
+                Some(prev.clone())
+            }
+        }))
+    }
+}
