@@ -149,6 +149,7 @@ pub fn sieve_generate_safe_primes(
     }
 }
 
+#[cfg(feature = "quickcheck")]
 impl quickcheck::Arbitrary for Sign {
     fn arbitrary(g: &mut quickcheck::Gen) -> Self {
         if bool::arbitrary(g) {
