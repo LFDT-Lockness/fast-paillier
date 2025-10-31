@@ -32,7 +32,6 @@ quickcheck = { version = "1", optional = true, default-features = false }
 [dev-dependencies]
 rand_dev = "0.1"
 rand = { version = "0.8", default-features = false }
-quickcheck = { version = "1", default-features = false }
 
 # Used to test serialization when serde is enabled
 rug = { version = "1.24", default-features = false, features = ["std", "integer", "rand", "serde"] }
