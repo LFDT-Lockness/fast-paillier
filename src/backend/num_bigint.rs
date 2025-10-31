@@ -140,14 +140,21 @@ impl Integer {
         self.pow_mod_ref(exponent, modulo)
     }
     pub fn pow_mod_ref(&self, exponent: &Self, modulo: &Self) -> Option<Self> {
-        if exponent.0.is_negative() {
+        let r = if exponent.0.is_negative() {
             let nself = self.0.modinv(&modulo.0)?;
             Some(Integer(nself.modpow(&-&exponent.0, &modulo.0)))
         } else {
             Some(Integer(self.0.modpow(&exponent.0, &modulo.0)))
+        };
+        if modulo.cmp0().is_lt() && r.as_ref().map(|r| r.cmp0().is_ne()).unwrap_or(false) {
+            eprintln!("adjusting {r:?}");
+            r.map(|r| r - modulo)
+        } else {
+            r
         }
     }
     pub fn u_pow_u(base: u32, exponent: u32) -> Self {
+        eprintln!("u_pow_u({base}, {exponent})");
         let base = num_bigint::BigInt::from(base);
         Integer(base.pow(exponent))
     }
@@ -202,10 +209,15 @@ impl Integer {
     }
 
     pub fn invert(self, modulo: &Self) -> Option<Self> {
-        self.0.modinv(&modulo.0).map(Integer)
+        self.invert_ref(modulo)
     }
     pub fn invert_ref(&self, modulo: &Self) -> Option<Self> {
-        self.0.modinv(&modulo.0).map(Integer)
+        let r = self.0.modinv(&modulo.0).map(Integer);
+        if modulo.cmp0().is_lt() && r.as_ref().map(|r| r.cmp0().is_ne()).unwrap_or(false) {
+            r.map(|r| r - modulo)
+        } else {
+            r
+        }
     }
 
     pub fn set_bit(&mut self, index: u32, value: bool) -> &mut Self {
@@ -422,5 +434,17 @@ impl quickcheck::Arbitrary for Integer {
         let bytes = Vec::<u8>::arbitrary(g);
         let sign = super::Sign::arbitrary(g);
         Integer::from_bytes_msf_signed(&bytes, sign)
+    }
+
+    fn shrink(&self) -> Box<dyn Iterator<Item = Self>> {
+        let mut prev = self.clone();
+        Box::new(std::iter::from_fn(move || {
+            if prev.cmp0().is_eq() {
+                None
+            } else {
+                prev >>= 1;
+                Some(prev.clone())
+            }
+        }))
     }
 }

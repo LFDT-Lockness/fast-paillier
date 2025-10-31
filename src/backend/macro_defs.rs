@@ -187,6 +187,11 @@ macro_rules! make_all_ops {
             }
         }
 
+        impl From<u8> for $type {
+            fn from(value: u8) -> Self {
+                $type(value.into())
+            }
+        }
         impl From<u16> for $type {
             fn from(value: u16) -> Self {
                 $type(value.into())

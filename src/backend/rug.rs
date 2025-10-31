@@ -134,6 +134,7 @@ impl Integer {
             .map(Integer)
     }
     pub fn u_pow_u(base: u32, exponent: u32) -> Self {
+        eprintln!("u_pow_u({base}, {exponent})");
         Integer(rug::Integer::u_pow_u(base, exponent).complete())
     }
 
