@@ -108,6 +108,7 @@ impl Integer {
     }
 
     pub fn abs(self) -> Self {
+        // Abs in the backend crate clones, but we can do better
         let (_sign, val) = self.0.into_parts();
         Self(num_bigint::BigInt::from(val))
     }
@@ -142,14 +143,17 @@ impl Integer {
     pub fn pow_mod_ref(&self, exponent: &Self, modulo: &Self) -> Option<Self> {
         let r = if exponent.0.is_negative() {
             let nself = self.0.modinv(&modulo.0)?;
-            Some(Integer(nself.modpow(&-&exponent.0, &modulo.0)))
+            Integer(nself.modpow(&-&exponent.0, &modulo.0))
         } else {
-            Some(Integer(self.0.modpow(&exponent.0, &modulo.0)))
+            Integer(self.0.modpow(&exponent.0, &modulo.0))
         };
-        if modulo.cmp0().is_lt() && r.as_ref().map(|r| r.cmp0().is_ne()).unwrap_or(false) {
-            r.map(|r| r - modulo)
+        // Rug always produces a positive result here. Num-bigint always
+        // produces a result between zero and modulo. When modulo is negative,
+        // adjust by it to obtain a result identical to rug
+        if modulo.cmp0().is_lt() && r.cmp0().is_ne() {
+            Some(r - modulo)
         } else {
-            r
+            Some(r)
         }
     }
     pub fn u_pow_u(base: u32, exponent: u32) -> Self {
@@ -210,11 +214,14 @@ impl Integer {
         self.invert_ref(modulo)
     }
     pub fn invert_ref(&self, modulo: &Self) -> Option<Self> {
-        let r = self.0.modinv(&modulo.0).map(Integer);
-        if modulo.cmp0().is_lt() && r.as_ref().map(|r| r.cmp0().is_ne()).unwrap_or(false) {
-            r.map(|r| r - modulo)
+        let r = self.0.modinv(&modulo.0).map(Integer)?;
+        // Rug always produces a positive result here. Num-bigint always
+        // produces a result between zero and modulo. When modulo is negative,
+        // adjust by it to obtain a result identical to rug
+        if modulo.cmp0().is_lt() && r.cmp0().is_ne() {
+            Some(r - modulo)
         } else {
-            r
+            Some(r)
         }
     }
 
