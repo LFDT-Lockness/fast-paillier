@@ -1,8 +1,8 @@
 use rand_core::{CryptoRng, RngCore};
-use rug::{Complete, Integer};
 
-use crate::{utils, Ciphertext, Nonce, Plaintext};
+use crate::backend::Integer;
 use crate::{Bug, Error, Reason};
+use crate::{Ciphertext, Nonce, Plaintext};
 
 /// Paillier encryption key
 #[derive(Clone, Debug)]
@@ -44,38 +44,37 @@ impl EncryptionKey {
 
     /// `l(x) = (x-1)/n`
     pub(crate) fn l(&self, x: &Integer) -> Option<Integer> {
-        if (x % self.n()).complete() != *Integer::ONE {
+        if !(x % self.n()).is_one() {
             return None;
         }
-        if !utils::in_mult_group(x, self.nn()) {
+        if !x.in_mult_group_of(self.nn()) {
             return None;
         }
 
         // (x - 1) / N
-        Some((x - Integer::ONE).complete() / self.n())
+        Some((x - Integer::one()) / self.n())
     }
 
     /// Encrypts the plaintext `x` in `{-N/2, .., N_2}` with `nonce` in `Z*_n`
     ///
     /// Returns error if inputs are not in specified range
     pub fn encrypt_with(&self, x: &Plaintext, nonce: &Nonce) -> Result<Ciphertext, Error> {
-        if !self.in_signed_group(x) || !utils::in_mult_group(nonce, self.n()) {
+        if !self.in_signed_group(x) || !nonce.in_mult_group_of(self.n()) {
             return Err(Reason::Encrypt.into());
         }
 
         let x = if x.cmp0().is_ge() {
             x.clone()
         } else {
-            (x + self.n()).complete()
+            x + self.n()
         };
 
         // a = (1 + N)^x mod N^2 = (1 + xN) mod N^2
-        let a = (Integer::ONE + (&x * self.n()).complete()) % self.nn();
+        let a = (Integer::one() + &x * self.n()) % self.nn();
         // b = nonce^N mod N^2
         let b = nonce
-            .clone()
-            .pow_mod(self.n(), self.nn())
-            .map_err(|_| Bug::PowModUndef)?;
+            .pow_mod_ref(self.n(), self.nn())
+            .ok_or(Bug::PowModUndef)?;
 
         let c = (a * b).modulo(self.nn());
         Ok(c)
@@ -91,7 +90,7 @@ impl EncryptionKey {
         rng: &mut (impl RngCore + CryptoRng),
         x: &Plaintext,
     ) -> Result<(Ciphertext, Nonce), Error> {
-        let nonce = utils::sample_in_mult_group(rng, self.n());
+        let nonce = Integer::sample_in_mult_group_of(rng, self.n());
         let ciphertext = self.encrypt_with(x, &nonce)?;
         Ok((ciphertext, nonce))
     }
@@ -102,10 +101,10 @@ impl EncryptionKey {
     /// oadd(Enc(a1), Enc(a2)) = Enc(a1 + a2)
     /// ```
     pub fn oadd(&self, c1: &Ciphertext, c2: &Ciphertext) -> Result<Ciphertext, Error> {
-        if !utils::in_mult_group(c1, self.nn()) || !utils::in_mult_group(c2, self.nn()) {
+        if !c1.in_mult_group_of(self.nn()) || !c2.in_mult_group_of(self.nn()) {
             return Err(Reason::Ops.into());
         }
-        Ok((c1 * c2).complete() % self.nn())
+        Ok((c1 * c2) % self.nn())
     }
 
     /// Homomorphic subtraction of two ciphertexts
@@ -114,7 +113,7 @@ impl EncryptionKey {
     /// osub(Enc(a1), Enc(a2)) = Enc(a1 - a2)
     /// ```
     pub fn osub(&self, c1: &Ciphertext, c2: &Ciphertext) -> Result<Ciphertext, Error> {
-        if !utils::in_mult_group(c1, self.nn()) {
+        if !c1.in_mult_group_of(self.nn()) {
             return Err(Reason::Ops.into());
         }
         let c2 = self.oneg(c2)?;
@@ -127,16 +126,13 @@ impl EncryptionKey {
     /// omul(a, Enc(c)) = Enc(a * c)
     /// ```
     pub fn omul(&self, scalar: &Integer, ciphertext: &Ciphertext) -> Result<Ciphertext, Error> {
-        if !utils::in_mult_group_abs(scalar, self.n())
-            || !utils::in_mult_group(ciphertext, self.nn())
-        {
+        if !scalar.abs_in_mult_group_of(self.n()) || !ciphertext.in_mult_group_of(self.nn()) {
             return Err(Reason::Ops.into());
         }
 
         Ok(ciphertext
             .pow_mod_ref(scalar, self.nn())
-            .ok_or(Reason::Ops)?
-            .into())
+            .ok_or(Reason::Ops)?)
     }
 
     /// Homomorphic negation of a ciphertext
@@ -145,7 +141,7 @@ impl EncryptionKey {
     /// oneg(Enc(a)) = Enc(-a)
     /// ```
     pub fn oneg(&self, ciphertext: &Ciphertext) -> Result<Ciphertext, Error> {
-        Ok(ciphertext.invert_ref(self.nn()).ok_or(Reason::Ops)?.into())
+        Ok(ciphertext.invert_ref(self.nn()).ok_or(Reason::Ops)?)
     }
 
     /// Checks whether `x` is `{-N/2, .., N/2}`

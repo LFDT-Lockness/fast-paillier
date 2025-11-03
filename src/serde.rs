@@ -1,4 +1,4 @@
-use rug::Integer;
+use crate::backend::Integer;
 
 use crate::{DecryptionKey, EncryptionKey};
 

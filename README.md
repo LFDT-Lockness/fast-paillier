@@ -11,7 +11,17 @@ Library implements Paillier encryption scheme with optimization such as:
   the private key is known
 * Faster secret key generation (a.k.a faster safe primes generation)
 
-Built on top of [`rug`](https://docs.rs/rug) big integers library (which is based on GMP).
+## Big integer backend
+
+This crate uses an abstraction over the big integer implementation, available in `backend` module. The concrete backend can be selected with a feature flag:
+
+- `backend-num-bigint` (default) - use [`num-bigit`](https://docs.rs/num-bigint)
+- `backend-rug` - use [`rug`](https://docs.rs/rug). This backend is based on GNU GMP and can be several times faster.
+
+The applicability of this backend to your uses is not guaranteed, any
+additional functionality to it will not be added. However, you can convert them
+to bytes or, if using a fixed backend, to the underlying format, and perform
+the necessary operations with those.
 
 ## Join us in Discord!
 Feel free to reach out to us [in Discord]!

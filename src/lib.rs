@@ -1,6 +1,30 @@
 #![doc = include_str!("../README.md")]
-#![forbid(missing_docs)]
+#![warn(missing_docs, unused_crate_dependencies)]
+#![cfg_attr(
+    not(test),
+    warn(clippy::expect_used, clippy::unwrap_used, clippy::panic)
+)]
 
+#[cfg(test)]
+mod unused_deps {
+    // Since dev-dependencies are not allowed to be optional, we have to
+    // explicitly use them to prevent unused_crate_dependencies warning
+
+    #[cfg(not(feature = "serde"))]
+    use serde_json as _;
+
+    mod test_deps {
+        use ciborium as _;
+        use rand as _;
+        use rug as _;
+    }
+    mod benchmark_deps {
+        use criterion as _;
+        use libpaillier as _;
+    }
+}
+
+pub mod backend;
 mod decryption_key;
 mod encryption_key;
 pub mod utils;
@@ -10,8 +34,8 @@ mod serde;
 
 use std::fmt;
 
+use crate::backend::Integer;
 use rand_core::{CryptoRng, RngCore};
-use rug::Integer;
 
 /// Paillier ciphertext
 pub type Ciphertext = Integer;
@@ -71,8 +95,7 @@ mod sealed {
 /// and benefit from faster encryption if decryption key is provided.
 ///
 /// ```rust
-/// use fast_paillier::{AnyEncryptionKey, Error};
-/// use rug::Integer;
+/// use fast_paillier::{AnyEncryptionKey, Error, backend::Integer};
 ///
 /// // This function accepts both encryption and decryption key. If decryption key is provided,
 /// // it'll be more efficient
@@ -145,7 +168,7 @@ impl<E: AnyEncryptionKey> AnyEncryptionKeyExt for E {
         rng: &mut (impl RngCore + CryptoRng),
         x: &Plaintext,
     ) -> Result<(Ciphertext, Nonce), Error> {
-        let nonce = utils::sample_in_mult_group(rng, self.n());
+        let nonce = Integer::sample_in_mult_group_of(rng, self.n());
         let ciphertext = self.encrypt_with(x, &nonce)?;
         Ok((ciphertext, nonce))
     }
