@@ -23,7 +23,7 @@ rand = { version = "0.8", optional = true, default-features = false }
 
 rand_core = "0.6"
 
-thiserror = "1"
+thiserror = "2"
 
 serde = { version = "1", optional = true, features = ["derive"] }
 quickcheck = { version = "1", optional = true, default-features = false }

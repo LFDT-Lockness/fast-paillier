@@ -4,6 +4,7 @@
     not(test),
     warn(clippy::expect_used, clippy::unwrap_used, clippy::panic)
 )]
+#![no_std]
 
 #[cfg(test)]
 mod unused_deps {
@@ -24,6 +25,8 @@ mod unused_deps {
     }
 }
 
+extern crate alloc;
+
 pub mod backend;
 mod decryption_key;
 mod encryption_key;
@@ -32,7 +35,7 @@ pub mod utils;
 #[cfg(feature = "serde")]
 mod serde;
 
-use std::fmt;
+use core::fmt;
 
 use crate::backend::Integer;
 use rand_core::{CryptoRng, RngCore};

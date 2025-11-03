@@ -1,5 +1,7 @@
 #![allow(missing_docs)]
 
+use alloc::{string::String, vec::Vec};
+
 use super::IsPrime;
 use rug::Complete;
 
@@ -103,7 +105,7 @@ impl Integer {
     pub fn abs(self) -> Self {
         Self(self.0.abs())
     }
-    pub fn cmp_abs(&self, other: &Self) -> std::cmp::Ordering {
+    pub fn cmp_abs(&self, other: &Self) -> core::cmp::Ordering {
         self.0.cmp_abs(&other.0)
     }
 
@@ -114,12 +116,12 @@ impl Integer {
         Integer(self.0.gcd_ref(&other.0).complete())
     }
 
-    pub fn cmp0(&self) -> std::cmp::Ordering {
+    pub fn cmp0(&self) -> core::cmp::Ordering {
         self.0.cmp0()
     }
     pub fn sign(&self) -> super::Sign {
         match self.cmp0() {
-            std::cmp::Ordering::Less => super::Sign::Negative,
+            core::cmp::Ordering::Less => super::Sign::Negative,
             _ => super::Sign::NonNegative,
         }
     }
@@ -292,9 +294,9 @@ impl quickcheck::Arbitrary for Integer {
         Integer::from_bytes_msf_signed(&bytes, sign)
     }
 
-    fn shrink(&self) -> Box<dyn Iterator<Item = Self>> {
+    fn shrink(&self) -> alloc::boxed::Box<dyn Iterator<Item = Self>> {
         let mut prev = self.clone();
-        Box::new(std::iter::from_fn(move || {
+        alloc::boxed::Box::new(core::iter::from_fn(move || {
             if prev.cmp0().is_eq() {
                 None
             } else {

@@ -175,7 +175,7 @@ mod serialize {
     #[derive(serde::Serialize, serde::Deserialize)]
     struct DictFormat<'a> {
         radix: u16,
-        value: std::borrow::Cow<'a, str>,
+        value: alloc::borrow::Cow<'a, str>,
     }
 
     macro_rules! make_serde {
@@ -212,6 +212,9 @@ mod serialize {
 
     #[cfg(test)]
     mod test {
+        #[cfg(feature = "backend-rug")]
+        use alloc::{string::ToString, vec::Vec};
+
         use crate::backend::Integer;
 
         #[cfg(feature = "backend-rug")]
