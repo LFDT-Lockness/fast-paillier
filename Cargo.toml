@@ -15,9 +15,9 @@ keywords = ["paillier", "public-key", "encryption"]
 rug = { version = "1.24", optional = true, default-features = false, features = ["std", "integer", "rand"] }
 bytemuck = { version = "1.5", features = ["derive"], optional = true }
 # Deps for num-bigint
-num-bigint = { version = "0.4.6", optional = true, default-features = false, features = ["std", "rand"] }
-num-traits = { version = "0.2.19", optional = true }
-num-integer = { version = "0.1.46", optional = true }
+num-bigint = { version = "0.4.6", optional = true, default-features = false, features = ["rand"] }
+num-traits = { version = "0.2.19", optional = true, default-features = false }
+num-integer = { version = "0.1.46", optional = true, default-features = false }
 glass_pumpkin = { version = "1.7", optional = true }
 rand = { version = "0.8", optional = true, default-features = false }
 
@@ -25,7 +25,7 @@ rand_core = "0.6"
 
 thiserror = "2"
 
-serde = { version = "1", optional = true, features = ["derive"] }
+serde = { version = "1", optional = true, default-features = false, features = ["derive", "alloc"] }
 quickcheck = { version = "1", optional = true, default-features = false }
 
 
