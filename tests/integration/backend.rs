@@ -57,7 +57,6 @@ macro_rules! make_quickcheck {
                     )*
                 );
 
-                eprintln!("asserting eq {r1}, {r2}");
                 r1.equals(r2)
             }
         }

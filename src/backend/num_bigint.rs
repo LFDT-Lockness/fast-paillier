@@ -147,14 +147,12 @@ impl Integer {
             Some(Integer(self.0.modpow(&exponent.0, &modulo.0)))
         };
         if modulo.cmp0().is_lt() && r.as_ref().map(|r| r.cmp0().is_ne()).unwrap_or(false) {
-            eprintln!("adjusting {r:?}");
             r.map(|r| r - modulo)
         } else {
             r
         }
     }
     pub fn u_pow_u(base: u32, exponent: u32) -> Self {
-        eprintln!("u_pow_u({base}, {exponent})");
         let base = num_bigint::BigInt::from(base);
         Integer(base.pow(exponent))
     }
