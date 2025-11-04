@@ -152,7 +152,7 @@ pub fn naive_safe_prime(rng: &mut impl rand_core::RngCore, bits: u32) -> Integer
         x <<= 1;
         x += 1;
 
-        if let IsPrime::Yes | IsPrime::Probably = x.is_probably_prime(25) {
+        if let IsPrime::Yes | IsPrime::Probably = x.is_probably_prime(25, rng) {
             return x;
         }
     }

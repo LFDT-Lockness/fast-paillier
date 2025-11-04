@@ -36,6 +36,34 @@ macro_rules! make_quickcheck {
             }
         }
     };
+    // Similar to the previous branch, but adds a PRNG to method invocation as a last argument
+    (#[with_rng] $method:ident ( self: $self_ty:ty, $($arg:ident: $t:ty),* $(,)? ) ) => {
+        quickcheck::quickcheck! {
+            fn $method(nbi: $self_ty, $($arg: $t),*, rng: Prng) -> bool {
+                #[allow(unused_mut)]
+                let mut nbi = NbiInteger::from(nbi);
+                let (bytes, sign) = nbi.to_bytes_msf_signed();
+                #[allow(unused_mut)]
+                let mut rug = RugInteger::from_bytes_msf_signed(&bytes, sign);
+                let mut rng = rng.0;
+
+                let r1 = nbi.$method(
+                    $(
+                        Arg::to_nbi( &$arg )
+                    ),*,
+                    &mut rng,
+                );
+                let r2 = rug.$method(
+                    $(
+                        Arg::to_rug( &$arg )
+                    ),*,
+                    &mut rng,
+                );
+
+                r1.equals(r2)
+            }
+        }
+    };
     // Case for static methods. Called like `make_quickcheck!(Self::method_name(
     // arg: T2, arg2: T3))`
     //
@@ -89,7 +117,7 @@ make_quickcheck!(significant_dwords(self: NbiInteger));
 make_quickcheck!(invert(self: NbiInteger, modulo: Positive<RefInteger>));
 make_quickcheck!(invert_ref(self: NbiInteger, modulo: Positive<RefInteger>));
 make_quickcheck!(set_bit(self: NbiInteger, index: SmallU32, value: bool));
-make_quickcheck!(is_probably_prime(self: NbiInteger, const25: Const25));
+make_quickcheck!(#[with_rng] is_probably_prime(self: NbiInteger, const25: Const25));
 make_quickcheck!(jacobi(self: NbiInteger, n: OddPositive));
 make_quickcheck!(
     combine(
@@ -200,6 +228,7 @@ macro_rules! trivial_arg {
 trivial_arg! {
     u32,
     bool,
+    Prng,
 }
 
 ///// Newtypes for quickcheck's Arbitrary /////
@@ -386,5 +415,16 @@ where
                 break Positive(x);
             }
         }
+    }
+}
+
+#[derive(Clone, Debug)]
+struct Prng(rand_dev::DevRng);
+impl quickcheck::Arbitrary for Prng {
+    fn arbitrary(g: &mut quickcheck::Gen) -> Self {
+        // this seed is not going to be uniform as there's no way to sample uniform distribution
+        // from Gen
+        let seed = [0u8; 32].map(|_| u8::arbitrary(g));
+        Prng(rand_core::SeedableRng::from_seed(seed))
     }
 }

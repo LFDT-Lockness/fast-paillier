@@ -139,10 +139,10 @@ pub fn sieve_generate_safe_primes(
         }
 
         // 25 taken same as one used in mpz_nextprime
-        if let IsPrime::Yes | IsPrime::Probably = x.is_probably_prime(25) {
+        if let IsPrime::Yes | IsPrime::Probably = x.is_probably_prime(25, rng) {
             x <<= 1;
             x += 1;
-            if let IsPrime::Yes | IsPrime::Probably = x.is_probably_prime(25) {
+            if let IsPrime::Yes | IsPrime::Probably = x.is_probably_prime(25, rng) {
                 return x;
             }
         }

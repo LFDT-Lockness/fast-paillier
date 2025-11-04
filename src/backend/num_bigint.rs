@@ -269,10 +269,10 @@ impl Integer {
     }
 
     // TODO reps is unused here, need to unify with rug
-    pub fn is_probably_prime(&self, _reps: u32) -> IsPrime {
+    pub fn is_probably_prime(&self, _reps: u32, rng: &mut impl rand_core::RngCore) -> IsPrime {
         if self.cmp0().is_le() {
             IsPrime::No
-        } else if glass_pumpkin::prime::check(self.0.magnitude()) {
+        } else if glass_pumpkin::prime::check_with(self.0.magnitude(), rng) {
             IsPrime::Yes
         } else {
             IsPrime::No
@@ -407,7 +407,8 @@ mod test {
         for _ in 0..4096 {
             let mut r = Integer::random_bits(len, rng);
             r.set_bit(0, true);
-            if r.is_probably_prime(25) != super::IsPrime::No && super::last_limb(&r.0) % 4 == 3 {
+            if r.is_probably_prime(25, rng) != super::IsPrime::No && super::last_limb(&r.0) % 4 == 3
+            {
                 return r;
             }
         }

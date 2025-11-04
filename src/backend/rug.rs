@@ -231,7 +231,7 @@ impl Integer {
         rug::Assign::assign(&mut self.0, r)
     }
 
-    pub fn is_probably_prime(&self, reps: u32) -> IsPrime {
+    pub fn is_probably_prime(&self, reps: u32, _rng: &mut impl rand_core::RngCore) -> IsPrime {
         if self.cmp0().is_le() {
             return IsPrime::No;
         }
@@ -249,7 +249,7 @@ impl Integer {
             x.assign_random_bits(bit_size, rng);
             x.set_bit(bit_size - 1, true);
             x |= 1u32;
-            if let IsPrime::Yes | IsPrime::Probably = x.is_probably_prime(25) {
+            if let IsPrime::Yes | IsPrime::Probably = x.is_probably_prime(25, rng) {
                 return x;
             }
         }
