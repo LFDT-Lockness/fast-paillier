@@ -46,9 +46,26 @@ jobs:
         cache-on-failure: "true"
     - name: Build
       run: |
-        cargo build --no-default-features --features backend-rug
-        cargo build --no-default-features --features backend-num-bigint
+        cargo build --no-default-features --features backend-rug,std
+        cargo build --no-default-features --features backend-num-bigint,std
+        cargo build --no-default-features --features backend-num-bigint,no_std
         cargo build --all-features
+
+  build-wasm-nostd:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: Swatinem/rust-cache@v2
+      with:
+        cache-on-failure: "true"
+    - name: Install wasm32-unknown-unknown toolchain
+      run: rustup target add wasm32-unknown-unknown
+    - name: Build
+      run: |
+        cargo check -p fast-paillier \
+          --no-default-features \
+          --features backend-num-bigint,no_std,serde \
+          --target wasm32-unknown-unknown
 
   check-fmt:
     runs-on: ubuntu-latest

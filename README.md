@@ -23,6 +23,11 @@ additional functionality to it will not be added. However, you can convert them
 to bytes or, if using a fixed backend, to the underlying format, and perform
 the necessary operations with those.
 
+## `#![no_std]` support
+Library is `#![no_std]`-friendly as long as you enable `no_std` feature, and you use only these
+features: `backend-num-bigint`, `serde`. Enabling other features will introduce transitive
+dependency on `std`.
+
 ## Join us in Discord!
 Feel free to reach out to us [in Discord]!
 

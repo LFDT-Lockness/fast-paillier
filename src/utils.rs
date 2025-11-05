@@ -1,6 +1,6 @@
 //! Various utilities
 
-use std::fmt;
+use core::fmt;
 
 use crate::backend::Integer;
 

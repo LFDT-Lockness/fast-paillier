@@ -139,10 +139,10 @@ pub fn sieve_generate_safe_primes(
         }
 
         // 25 taken same as one used in mpz_nextprime
-        if let IsPrime::Yes | IsPrime::Probably = x.is_probably_prime(25) {
+        if let IsPrime::Yes | IsPrime::Probably = x.is_probably_prime(25, rng) {
             x <<= 1;
             x += 1;
-            if let IsPrime::Yes | IsPrime::Probably = x.is_probably_prime(25) {
+            if let IsPrime::Yes | IsPrime::Probably = x.is_probably_prime(25, rng) {
                 return x;
             }
         }
@@ -175,7 +175,7 @@ mod serialize {
     #[derive(serde::Serialize, serde::Deserialize)]
     struct DictFormat<'a> {
         radix: u16,
-        value: std::borrow::Cow<'a, str>,
+        value: alloc::borrow::Cow<'a, str>,
     }
 
     macro_rules! make_serde {
@@ -212,6 +212,9 @@ mod serialize {
 
     #[cfg(test)]
     mod test {
+        #[cfg(feature = "backend-rug")]
+        use alloc::{string::ToString, vec::Vec};
+
         use crate::backend::Integer;
 
         #[cfg(feature = "backend-rug")]

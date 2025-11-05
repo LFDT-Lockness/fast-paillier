@@ -1,5 +1,7 @@
 #![allow(missing_docs)]
 
+use alloc::{string::String, vec::Vec};
+
 use super::IsPrime;
 use num_integer::Integer as _;
 use num_traits::Signed as _;
@@ -112,7 +114,7 @@ impl Integer {
         let (_sign, val) = self.0.into_parts();
         Self(num_bigint::BigInt::from(val))
     }
-    pub fn cmp_abs(&self, other: &Self) -> std::cmp::Ordering {
+    pub fn cmp_abs(&self, other: &Self) -> core::cmp::Ordering {
         self.0.magnitude().cmp(other.0.magnitude())
     }
 
@@ -123,11 +125,11 @@ impl Integer {
         Integer(self.0.gcd(&other.0))
     }
 
-    pub fn cmp0(&self) -> std::cmp::Ordering {
+    pub fn cmp0(&self) -> core::cmp::Ordering {
         match self.0.sign() {
-            num_bigint::Sign::NoSign => std::cmp::Ordering::Equal,
-            num_bigint::Sign::Plus => std::cmp::Ordering::Greater,
-            num_bigint::Sign::Minus => std::cmp::Ordering::Less,
+            num_bigint::Sign::NoSign => core::cmp::Ordering::Equal,
+            num_bigint::Sign::Plus => core::cmp::Ordering::Greater,
+            num_bigint::Sign::Minus => core::cmp::Ordering::Less,
         }
     }
     pub fn sign(&self) -> super::Sign {
@@ -267,10 +269,10 @@ impl Integer {
     }
 
     // TODO reps is unused here, need to unify with rug
-    pub fn is_probably_prime(&self, _reps: u32) -> IsPrime {
+    pub fn is_probably_prime(&self, _reps: u32, rng: &mut impl rand_core::RngCore) -> IsPrime {
         if self.cmp0().is_le() {
             IsPrime::No
-        } else if glass_pumpkin::prime::check(self.0.magnitude()) {
+        } else if glass_pumpkin::prime::check_with(self.0.magnitude(), rng) {
             IsPrime::Yes
         } else {
             IsPrime::No
@@ -384,9 +386,9 @@ impl quickcheck::Arbitrary for Integer {
         Integer::from_bytes_msf_signed(&bytes, sign)
     }
 
-    fn shrink(&self) -> Box<dyn Iterator<Item = Self>> {
+    fn shrink(&self) -> alloc::boxed::Box<dyn Iterator<Item = Self>> {
         let mut prev = self.clone();
-        Box::new(std::iter::from_fn(move || {
+        alloc::boxed::Box::new(core::iter::from_fn(move || {
             if prev.cmp0().is_eq() {
                 None
             } else {
@@ -405,7 +407,8 @@ mod test {
         for _ in 0..4096 {
             let mut r = Integer::random_bits(len, rng);
             r.set_bit(0, true);
-            if r.is_probably_prime(25) != super::IsPrime::No && super::last_limb(&r.0) % 4 == 3 {
+            if r.is_probably_prime(25, rng) != super::IsPrime::No && super::last_limb(&r.0) % 4 == 3
+            {
                 return r;
             }
         }

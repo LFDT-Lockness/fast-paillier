@@ -1,6 +1,6 @@
 [package]
 name = "fast-paillier"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "Optimized Paillier encryption scheme"
@@ -15,17 +15,17 @@ keywords = ["paillier", "public-key", "encryption"]
 rug = { version = "1.24", optional = true, default-features = false, features = ["std", "integer", "rand"] }
 bytemuck = { version = "1.5", features = ["derive"], optional = true }
 # Deps for num-bigint
-num-bigint = { version = "0.4.6", optional = true, default-features = false, features = ["std", "rand"] }
-num-traits = { version = "0.2.19", optional = true }
-num-integer = { version = "0.1.46", optional = true }
-glass_pumpkin = { version = "1.7", optional = true }
+num-bigint = { version = "0.4.6", optional = true, default-features = false, features = ["rand"] }
+num-traits = { version = "0.2.19", optional = true, default-features = false }
+num-integer = { version = "0.1.46", optional = true, default-features = false }
+glass_pumpkin = { version = "1.8", optional = true, default-features = false }
 rand = { version = "0.8", optional = true, default-features = false }
 
 rand_core = "0.6"
 
-thiserror = "1"
+thiserror = { version = "2", default-features = false }
 
-serde = { version = "1", optional = true, features = ["derive"] }
+serde = { version = "1", optional = true, default-features = false, features = ["derive", "alloc"] }
 quickcheck = { version = "1", optional = true, default-features = false }
 
 
@@ -43,7 +43,10 @@ criterion = { version = "0.5", features = ["html_reports"] }
 libpaillier = { version = "0.5", default-features = false, features = ["gmp"] }
 
 [features]
-default = ["backend-num-bigint"]
+default = ["backend-num-bigint", "std"]
+
+std = ["glass_pumpkin?/std"]
+no_std = ["glass_pumpkin?/no_std"]
 
 serde = ["dep:serde"]
 quickcheck = ["dep:quickcheck"]
