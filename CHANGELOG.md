@@ -1,6 +1,6 @@
 ## v0.2.1
 * Crate is now `#[no_std]` friendly as long as you enable `no_std` feature, and you use only
-  these features: `backend-num-bigint`, `serde`. Enabling other features will intoduce transitive
+  these features: `backend-num-bigint`, `serde`. Enabling other features will introduce transitive
   dependency on `std`.
 
 See [#20](https://github.com/LFDT-Lockness/fast-paillier/pull/20)
