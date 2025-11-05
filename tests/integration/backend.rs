@@ -21,44 +21,31 @@ macro_rules! make_quickcheck {
                 #[allow(unused_mut)]
                 let mut rug = RugInteger::from_bytes_msf_signed(&bytes, sign);
 
-                let r1 = nbi.$method(
+                let r1 = {
+                    // Since Arg::to_nbi takes mutable reference to the arg, we clone them,
+                    // so the `rug` method below receives the same args as provided by
+                    // quickcheck without any modification
                     $(
-                        Arg::to_nbi( &$arg ),
+                        let mut $arg = $arg.clone();
                     )*
-                );
-                let r2 = rug.$method(
+                    nbi.$method(
+                        $(
+                            Arg::to_nbi( &mut $arg ),
+                        )*
+                    )
+                };
+                let r2 = {
+                    // Change args mutability
                     $(
-                        Arg::to_rug( &$arg ),
+                        let mut $arg = $arg;
                     )*
-                );
 
-                r1.equals(r2)
-            }
-        }
-    };
-    // Similar to the previous branch, but adds a PRNG to method invocation as a last argument
-    (#[with_rng] $method:ident ( self: $self_ty:ty, $($arg:ident: $t:ty),* $(,)? ) ) => {
-        quickcheck::quickcheck! {
-            fn $method(nbi: $self_ty, $($arg: $t),*, rng: Prng) -> bool {
-                #[allow(unused_mut)]
-                let mut nbi = NbiInteger::from(nbi);
-                let (bytes, sign) = nbi.to_bytes_msf_signed();
-                #[allow(unused_mut)]
-                let mut rug = RugInteger::from_bytes_msf_signed(&bytes, sign);
-                let mut rng = rng.0;
-
-                let r1 = nbi.$method(
-                    $(
-                        Arg::to_nbi( &$arg )
-                    ),*,
-                    &mut rng,
-                );
-                let r2 = rug.$method(
-                    $(
-                        Arg::to_rug( &$arg )
-                    ),*,
-                    &mut rng,
-                );
+                    rug.$method(
+                        $(
+                            Arg::to_rug( &mut $arg ),
+                        )*
+                    )
+                };
 
                 r1.equals(r2)
             }
@@ -72,18 +59,34 @@ macro_rules! make_quickcheck {
     (Self :: $method:ident($arg:ident: $t:ty $(, $args:ident: $ts:ty)*)) => {
         quickcheck::quickcheck! {
             fn $method($arg: $t $(, $args: $ts)*) -> bool {
-                let r1 = NbiInteger::$method(
-                    Arg::to_nbi( &$arg ),
+                let r1 = {
+                    // Since Arg::to_nbi takes mutable reference to the arg, we clone them,
+                    // so the `rug` method below receives the same args as provided by
+                    // quickcheck without any modification
+                    let mut $arg = $arg.clone();
                     $(
-                        Arg::to_nbi( &$args ),
+                        let mut $args = $args.clone();
                     )*
-                );
-                let r2 = RugInteger::$method(
-                    Arg::to_rug( &$arg ),
+                    NbiInteger::$method(
+                        Arg::to_nbi( &mut $arg ),
+                        $(
+                            Arg::to_nbi( &mut $args ),
+                        )*
+                    )
+                };
+                let r2 = {
+                    // Change args mutability
+                    let mut $arg = $arg;
                     $(
-                        Arg::to_rug( &$args ),
+                        let mut $args = $args;
                     )*
-                );
+                    RugInteger::$method(
+                        Arg::to_rug( &mut $arg ),
+                        $(
+                            Arg::to_rug( &mut $args ),
+                        )*
+                    )
+                };
 
                 r1.equals(r2)
             }
@@ -117,7 +120,7 @@ make_quickcheck!(significant_dwords(self: NbiInteger));
 make_quickcheck!(invert(self: NbiInteger, modulo: Positive<RefInteger>));
 make_quickcheck!(invert_ref(self: NbiInteger, modulo: Positive<RefInteger>));
 make_quickcheck!(set_bit(self: NbiInteger, index: SmallU32, value: bool));
-make_quickcheck!(#[with_rng] is_probably_prime(self: NbiInteger, const25: Const25));
+make_quickcheck!(is_probably_prime(self: NbiInteger, const25: Const25, rng: Prng));
 make_quickcheck!(jacobi(self: NbiInteger, n: OddPositive));
 make_quickcheck!(
     combine(
@@ -205,8 +208,8 @@ trait Arg<'a> {
     type NbiArg;
     type RugArg;
 
-    fn to_nbi(&'a self) -> Self::NbiArg;
-    fn to_rug(&'a self) -> Self::RugArg;
+    fn to_nbi(&'a mut self) -> Self::NbiArg;
+    fn to_rug(&'a mut self) -> Self::RugArg;
 }
 
 macro_rules! trivial_arg {
@@ -215,10 +218,10 @@ macro_rules! trivial_arg {
             impl Arg<'_> for $t {
                 type NbiArg = $t;
                 type RugArg = $t;
-                fn to_nbi(&self) -> Self::NbiArg {
+                fn to_nbi(&mut self) -> Self::NbiArg {
                     self.clone()
                 }
-                fn to_rug(&self) -> Self::NbiArg {
+                fn to_rug(&mut self) -> Self::NbiArg {
                     self.clone()
                 }
             }
@@ -228,7 +231,6 @@ macro_rules! trivial_arg {
 trivial_arg! {
     u32,
     bool,
-    Prng,
 }
 
 ///// Newtypes for quickcheck's Arbitrary /////
@@ -240,10 +242,10 @@ struct RefInteger(NbiInteger, RugInteger);
 impl<'a> Arg<'a> for RefInteger {
     type NbiArg = &'a NbiInteger;
     type RugArg = &'a RugInteger;
-    fn to_nbi(&'a self) -> Self::NbiArg {
+    fn to_nbi(&'a mut self) -> Self::NbiArg {
         &self.0
     }
-    fn to_rug(&'a self) -> Self::RugArg {
+    fn to_rug(&'a mut self) -> Self::RugArg {
         &self.1
     }
 }
@@ -276,10 +278,10 @@ struct OddPositive(NbiInteger, RugInteger);
 impl<'a> Arg<'a> for OddPositive {
     type NbiArg = &'a NbiInteger;
     type RugArg = &'a RugInteger;
-    fn to_nbi(&'a self) -> Self::NbiArg {
+    fn to_nbi(&'a mut self) -> Self::NbiArg {
         &self.0
     }
-    fn to_rug(&'a self) -> Self::RugArg {
+    fn to_rug(&'a mut self) -> Self::RugArg {
         &self.1
     }
 }
@@ -308,10 +310,10 @@ struct SmallU32(u32);
 impl Arg<'_> for SmallU32 {
     type NbiArg = u32;
     type RugArg = u32;
-    fn to_nbi(&self) -> Self::NbiArg {
+    fn to_nbi(&mut self) -> Self::NbiArg {
         self.0
     }
-    fn to_rug(&self) -> Self::RugArg {
+    fn to_rug(&mut self) -> Self::RugArg {
         self.0
     }
 }
@@ -341,10 +343,10 @@ struct Const25;
 impl Arg<'_> for Const25 {
     type NbiArg = u32;
     type RugArg = u32;
-    fn to_nbi(&self) -> Self::NbiArg {
+    fn to_nbi(&mut self) -> Self::NbiArg {
         25
     }
-    fn to_rug(&self) -> Self::RugArg {
+    fn to_rug(&mut self) -> Self::RugArg {
         25
     }
 }
@@ -360,10 +362,10 @@ struct NonZero<T>(T);
 impl<'a, T: Arg<'a>> Arg<'a> for NonZero<T> {
     type NbiArg = T::NbiArg;
     type RugArg = T::RugArg;
-    fn to_nbi(&'a self) -> Self::NbiArg {
+    fn to_nbi(&'a mut self) -> Self::NbiArg {
         self.0.to_nbi()
     }
-    fn to_rug(&'a self) -> Self::RugArg {
+    fn to_rug(&'a mut self) -> Self::RugArg {
         self.0.to_rug()
     }
 }
@@ -394,10 +396,10 @@ struct Positive<T>(T);
 impl<'a, T: Arg<'a>> Arg<'a> for Positive<T> {
     type NbiArg = T::NbiArg;
     type RugArg = T::RugArg;
-    fn to_nbi(&'a self) -> Self::NbiArg {
+    fn to_nbi(&'a mut self) -> Self::NbiArg {
         self.0.to_nbi()
     }
-    fn to_rug(&'a self) -> Self::RugArg {
+    fn to_rug(&'a mut self) -> Self::RugArg {
         self.0.to_rug()
     }
 }
@@ -426,5 +428,16 @@ impl quickcheck::Arbitrary for Prng {
         // from Gen
         let seed = [0u8; 32].map(|_| u8::arbitrary(g));
         Prng(rand_core::SeedableRng::from_seed(seed))
+    }
+}
+impl<'a> Arg<'a> for Prng {
+    type NbiArg = &'a mut rand_dev::DevRng;
+    type RugArg = &'a mut rand_dev::DevRng;
+
+    fn to_nbi(&'a mut self) -> Self::NbiArg {
+        &mut self.0
+    }
+    fn to_rug(&'a mut self) -> Self::RugArg {
+        &mut self.0
     }
 }
