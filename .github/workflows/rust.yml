@@ -61,10 +61,10 @@ jobs:
     - name: Install wasm32-unknown-unknown toolchain
       run: rustup target add wasm32-unknown-unknown
     - name: Build
-      run: >
-        cargo check -p fast-paillier
-          --no-default-features
-          --features backend-num-bigint,no_std,serde
+      run: |
+        cargo check -p fast-paillier \
+          --no-default-features \
+          --features backend-num-bigint,no_std,serde \
           --target wasm32-unknown-unknown
 
   check-fmt:
