@@ -206,10 +206,7 @@ impl Integer {
         self.0.bits()
     }
     pub fn significant_dwords(&self) -> usize {
-        #[allow(clippy::expect_used)] // such overflow should never happen
-        usize::try_from(self.0.bits())
-            .expect("length overflows usize")
-            .div_ceil(32)
+        self.0.iter_u32_digits().len()
     }
 
     pub fn invert(self, modulo: &Self) -> Option<Self> {
