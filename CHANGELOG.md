@@ -1,3 +1,8 @@
+## v0.3.1
+* Improve implementation of `num_bigint::Integer::significant_dwords` [#21]
+
+See [#21](https://github.com/LFDT-Lockness/fast-paillier/pull/21)
+
 ## v0.3.0
 * Crate is now `#[no_std]` friendly as long as you enable `no_std` feature, and you use only
   these features: `backend-num-bigint`, `serde`. Enabling other features will introduce transitive
