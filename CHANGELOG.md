@@ -1,3 +1,10 @@
+## v0.3.2
+* Make `random_below`, `random_below_ref`, `random_bits`, `random_bits_signed`,
+  `assign_random_below`, `assign_random_bits` methods for both backends
+  generate the same numbers [#22]
+
+[#22]: https://github.com/LFDT-Lockness/fast-paillier/pull/22
+
 ## v0.3.1
 * Improve implementation of `num_bigint::Integer::significant_dwords` [#21]
 
