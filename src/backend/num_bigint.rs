@@ -257,12 +257,22 @@ impl Integer {
         Integer(num_bigint::BigInt::from_biguint(sign, uint))
     }
 
-    pub fn assign_random_below(&mut self, modulo: &Self, rng: &mut impl rand_core::RngCore) {
+    pub fn assign_random_below(
+        &mut self,
+        modulo: &Self,
+        rng: &mut impl rand_core::RngCore,
+    ) -> &mut Self {
         *self = modulo.random_below_ref(rng);
+        self
     }
 
-    pub fn assign_random_bits(&mut self, bits: u32, rng: &mut impl rand_core::RngCore) {
+    pub fn assign_random_bits(
+        &mut self,
+        bits: u32,
+        rng: &mut impl rand_core::RngCore,
+    ) -> &mut Self {
         *self = Self::random_bits(bits, rng);
+        self
     }
 
     // TODO reps is unused here, need to unify with rug

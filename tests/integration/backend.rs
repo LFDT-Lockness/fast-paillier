@@ -47,6 +47,7 @@ macro_rules! make_quickcheck {
                     )
                 };
 
+                eprintln!("equality starts");
                 r1.equals(r2)
             }
         }
@@ -120,7 +121,14 @@ make_quickcheck!(significant_dwords(self: NbiInteger));
 make_quickcheck!(invert(self: NbiInteger, modulo: Positive<RefInteger>));
 make_quickcheck!(invert_ref(self: NbiInteger, modulo: Positive<RefInteger>));
 make_quickcheck!(set_bit(self: NbiInteger, index: SmallU32, value: bool));
-make_quickcheck!(is_probably_prime(self: NbiInteger, const25: Const25, rng: Prng));
+make_quickcheck!(random_below(self: NbiInteger, rng: Prng));
+make_quickcheck!(random_below_ref(self: NbiInteger, rng: Prng));
+make_quickcheck!(Self::random_bits(bits: SmallU32, rng: Prng));
+make_quickcheck!(Self::random_bits_signed(bits: SmallU32, rng: Prng));
+make_quickcheck!(assign_random_below(self: NbiInteger, modulo: Positive<RefInteger>, rng: Prng));
+make_quickcheck!(assign_random_bits(self: NbiInteger, bits: SmallU32, rng: Prng));
+make_quickcheck!(is_probably_prime(self: NbiInteger, const25: Const<25>, rng: Prng));
+make_quickcheck!(Self::generate_prime(rng: Prng, bit_size: Const<1536>));
 make_quickcheck!(jacobi(self: NbiInteger, n: OddPositive));
 make_quickcheck!(
     combine(
@@ -336,23 +344,23 @@ impl quickcheck::Arbitrary for SmallU32 {
     }
 }
 
-/// Helper quickcheck newtype: generates a constant 25 u32. Convenient for the
+/// Helper quickcheck newtype: generates a constant u32. Convenient for the
 /// macros above, since they don't accept constant values
 #[derive(Clone, Debug)]
-struct Const25;
-impl Arg<'_> for Const25 {
+struct Const<const N: u32>;
+impl<const N: u32> Arg<'_> for Const<N> {
     type NbiArg = u32;
     type RugArg = u32;
     fn to_nbi(&mut self) -> Self::NbiArg {
-        25
+        N
     }
     fn to_rug(&mut self) -> Self::RugArg {
-        25
+        N
     }
 }
-impl quickcheck::Arbitrary for Const25 {
+impl<const N: u32> quickcheck::Arbitrary for Const<N> {
     fn arbitrary(_: &mut quickcheck::Gen) -> Self {
-        Const25
+        Const
     }
 }
 
@@ -424,8 +432,8 @@ where
 struct Prng(rand_dev::DevRng);
 impl quickcheck::Arbitrary for Prng {
     fn arbitrary(g: &mut quickcheck::Gen) -> Self {
-        // this seed is not going to be uniform as there's no way to sample uniform distribution
-        // from Gen
+        // this seed is not going to be uniform as there's no way to sample
+        // uniform distribution from Gen
         let seed = [0u8; 32].map(|_| u8::arbitrary(g));
         Prng(rand_core::SeedableRng::from_seed(seed))
     }
