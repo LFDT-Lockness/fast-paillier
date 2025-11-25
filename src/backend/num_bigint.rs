@@ -230,15 +230,31 @@ impl Integer {
     }
 
     pub fn random_below(self, rng: &mut impl rand_core::RngCore) -> Self {
-        let range = num_traits::ConstZero::ZERO..self.0;
-        Integer(rand::Rng::gen_range(rng, range))
+        // when the number is a power of two, the randomness generation between
+        // rug and nbi differs, and rug uses exactly the same as random_bits
+        let bits = self.0.bits() - 1;
+        if self.0.trailing_zeros() == Some(bits) {
+            Self::random_bits_u64(bits, rng)
+        } else {
+            let range = num_traits::ConstZero::ZERO..self.0;
+            Integer(rand::Rng::gen_range(rng, range))
+        }
     }
     pub fn random_below_ref(&self, rng: &mut impl rand_core::RngCore) -> Self {
-        let range = num_traits::ConstZero::ZERO..self.0.clone();
-        Integer(rand::Rng::gen_range(rng, range))
+        // see the note in random_below
+        let bits = self.0.bits() - 1;
+        if self.0.trailing_zeros() == Some(bits) {
+            Self::random_bits_u64(bits, rng)
+        } else {
+            let range = num_traits::ConstZero::ZERO..self.0.clone();
+            Integer(rand::Rng::gen_range(rng, range))
+        }
     }
     pub fn random_bits(bits: u32, rng: &mut impl rand_core::RngCore) -> Self {
-        let dist = num_bigint::RandomBits::new(bits.into());
+        Self::random_bits_u64(bits.into(), rng)
+    }
+    fn random_bits_u64(bits: u64, rng: &mut impl rand_core::RngCore) -> Self {
+        let dist = num_bigint::RandomBits::new(bits);
         let uint = rand::distributions::Distribution::sample(&dist, rng);
         Integer(num_bigint::BigInt::from_biguint(
             num_bigint::Sign::Plus,
@@ -257,12 +273,22 @@ impl Integer {
         Integer(num_bigint::BigInt::from_biguint(sign, uint))
     }
 
-    pub fn assign_random_below(&mut self, modulo: &Self, rng: &mut impl rand_core::RngCore) {
+    pub fn assign_random_below(
+        &mut self,
+        modulo: &Self,
+        rng: &mut impl rand_core::RngCore,
+    ) -> &mut Self {
         *self = modulo.random_below_ref(rng);
+        self
     }
 
-    pub fn assign_random_bits(&mut self, bits: u32, rng: &mut impl rand_core::RngCore) {
+    pub fn assign_random_bits(
+        &mut self,
+        bits: u32,
+        rng: &mut impl rand_core::RngCore,
+    ) -> &mut Self {
         *self = Self::random_bits(bits, rng);
+        self
     }
 
     // TODO reps is unused here, need to unify with rug

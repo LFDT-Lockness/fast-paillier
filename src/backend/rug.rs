@@ -219,16 +219,26 @@ impl Integer {
         }
     }
 
-    pub fn assign_random_below(&mut self, modulo: &Self, rng: &mut impl rand_core::RngCore) {
+    pub fn assign_random_below(
+        &mut self,
+        modulo: &Self,
+        rng: &mut impl rand_core::RngCore,
+    ) -> &mut Self {
         let mut rng = external_rand(rng);
         let r = modulo.0.random_below_ref(&mut rng);
-        rug::Assign::assign(&mut self.0, r)
+        rug::Assign::assign(&mut self.0, r);
+        self
     }
 
-    pub fn assign_random_bits(&mut self, bits: u32, rng: &mut impl rand_core::RngCore) {
+    pub fn assign_random_bits(
+        &mut self,
+        bits: u32,
+        rng: &mut impl rand_core::RngCore,
+    ) -> &mut Self {
         let mut rng = external_rand(rng);
         let r = rug::Integer::random_bits(bits, &mut rng);
-        rug::Assign::assign(&mut self.0, r)
+        rug::Assign::assign(&mut self.0, r);
+        self
     }
 
     pub fn is_probably_prime(&self, reps: u32, _rng: &mut impl rand_core::RngCore) -> IsPrime {

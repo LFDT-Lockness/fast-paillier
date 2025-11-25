@@ -120,7 +120,13 @@ make_quickcheck!(significant_dwords(self: NbiInteger));
 make_quickcheck!(invert(self: NbiInteger, modulo: Positive<RefInteger>));
 make_quickcheck!(invert_ref(self: NbiInteger, modulo: Positive<RefInteger>));
 make_quickcheck!(set_bit(self: NbiInteger, index: SmallU32, value: bool));
-make_quickcheck!(is_probably_prime(self: NbiInteger, const25: Const25, rng: Prng));
+make_quickcheck!(random_below(self: Positive<NbiInteger>, rng: Prng));
+make_quickcheck!(random_below_ref(self: Positive<NbiInteger>, rng: Prng));
+make_quickcheck!(Self::random_bits(bits: SmallU32, rng: Prng));
+make_quickcheck!(Self::random_bits_signed(bits: SmallU32, rng: Prng));
+make_quickcheck!(assign_random_below(self: NbiInteger, modulo: Positive<RefInteger>, rng: Prng));
+make_quickcheck!(assign_random_bits(self: NbiInteger, bits: SmallU32, rng: Prng));
+make_quickcheck!(is_probably_prime(self: NbiInteger, const25: Const<25>, rng: Prng));
 make_quickcheck!(jacobi(self: NbiInteger, n: OddPositive));
 make_quickcheck!(
     combine(
@@ -131,6 +137,20 @@ make_quickcheck!(
         re: RefInteger,
     )
 );
+
+#[test]
+fn round_random() {
+    let mut nbi_rng = rand_dev::DevRng::new();
+    let mut rug_rng = nbi_rng.clone();
+    let nbi = NbiInteger::from(8);
+    let rug = RugInteger::from(8);
+
+    for _ in 0..32 {
+        let nbi_random = nbi.random_below_ref(&mut nbi_rng);
+        let rug_random = rug.random_below_ref(&mut rug_rng);
+        assert!(nbi_random.equals(rug_random));
+    }
+}
 
 ///// Helper traits for macro /////
 
@@ -336,23 +356,23 @@ impl quickcheck::Arbitrary for SmallU32 {
     }
 }
 
-/// Helper quickcheck newtype: generates a constant 25 u32. Convenient for the
+/// Helper quickcheck newtype: generates a constant u32. Convenient for the
 /// macros above, since they don't accept constant values
 #[derive(Clone, Debug)]
-struct Const25;
-impl Arg<'_> for Const25 {
+struct Const<const N: u32>;
+impl<const N: u32> Arg<'_> for Const<N> {
     type NbiArg = u32;
     type RugArg = u32;
     fn to_nbi(&mut self) -> Self::NbiArg {
-        25
+        N
     }
     fn to_rug(&mut self) -> Self::RugArg {
-        25
+        N
     }
 }
-impl quickcheck::Arbitrary for Const25 {
+impl<const N: u32> quickcheck::Arbitrary for Const<N> {
     fn arbitrary(_: &mut quickcheck::Gen) -> Self {
-        Const25
+        Const
     }
 }
 
@@ -419,15 +439,25 @@ where
         }
     }
 }
+impl From<Positive<NbiInteger>> for NbiInteger {
+    fn from(value: Positive<NbiInteger>) -> Self {
+        value.0
+    }
+}
 
 #[derive(Clone, Debug)]
-struct Prng(rand_dev::DevRng);
+struct Prng {
+    // Used in debug impl to print the generated seed
+    _seed: [u8; 32],
+    rng: rand_dev::DevRng,
+}
 impl quickcheck::Arbitrary for Prng {
     fn arbitrary(g: &mut quickcheck::Gen) -> Self {
-        // this seed is not going to be uniform as there's no way to sample uniform distribution
-        // from Gen
+        // this seed is not going to be uniform as there's no way to sample
+        // uniform distribution from Gen
         let seed = [0u8; 32].map(|_| u8::arbitrary(g));
-        Prng(rand_core::SeedableRng::from_seed(seed))
+        let rng = rand_core::SeedableRng::from_seed(seed);
+        Prng { _seed: seed, rng }
     }
 }
 impl<'a> Arg<'a> for Prng {
@@ -435,9 +465,9 @@ impl<'a> Arg<'a> for Prng {
     type RugArg = &'a mut rand_dev::DevRng;
 
     fn to_nbi(&'a mut self) -> Self::NbiArg {
-        &mut self.0
+        &mut self.rng
     }
     fn to_rug(&'a mut self) -> Self::RugArg {
-        &mut self.0
+        &mut self.rng
     }
 }

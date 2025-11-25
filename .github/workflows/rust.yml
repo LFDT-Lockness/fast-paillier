@@ -36,8 +36,7 @@ jobs:
         cargo bench --no-run --no-default-features --features serde,backend-rug
     - name: Run tests
       run: cargo test --no-default-features --features serde,backend-rug
-
-  build-with-different-feature-sets:
+  build-and-test-all-features:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
@@ -46,10 +45,28 @@ jobs:
         cache-on-failure: "true"
     - name: Build
       run: |
-        cargo build --no-default-features --features backend-rug,std
-        cargo build --no-default-features --features backend-num-bigint,std
-        cargo build --no-default-features --features backend-num-bigint,no_std
         cargo build --all-features
+        cargo bench --no-run --all-features
+    - name: Run tests
+      run: cargo test --all-features
+
+  build-with-different-feature-sets:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        features:
+        - "backend-rug,std"
+        - "backend-num-bigint,std"
+        - "backend-num-bigint,no_std"
+    steps:
+    - uses: actions/checkout@v3
+    - uses: Swatinem/rust-cache@v2
+      with:
+        cache-on-failure: "true"
+    - name: Build
+      run: |
+        cargo build --no-default-features --features ${{ matrix.features }}
+        cargo bench --no-run --no-default-features --features ${{ matrix.features }}
 
   build-wasm-nostd:
     runs-on: ubuntu-latest
