@@ -2,6 +2,7 @@
 [![Docs](https://docs.rs/fast-paillier/badge.svg)](https://docs.rs/fast-paillier)
 [![Crates io](https://img.shields.io/crates/v/fast-paillier.svg)](https://crates.io/crates/fast-paillier)
 [![Discord](https://img.shields.io/discord/905194001349627914?logo=discord&logoColor=ffffff&label=Discord)][in Discord]
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/LFDT-Lockness/fast-paillier/badge)](https://scorecard.dev/viewer/?uri=github.com/LFDT-Lockness/fast-paillier)
 
 # Optimized Paillier encryption scheme
 
@@ -31,4 +32,4 @@ dependency on `std`.
 ## Join us in Discord!
 Feel free to reach out to us [in Discord]!
 
-[in Discord]: https://discordapp.com/channels/905194001349627914/1285268686147424388
+[in Discord]: https://discord.com/invite/hyperledger
