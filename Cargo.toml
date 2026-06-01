@@ -30,7 +30,7 @@ quickcheck = { version = "1", optional = true, default-features = false }
 
 
 [dev-dependencies]
-rand_dev = "0.1"
+rand_dev = "0.2"
 rand = { version = "0.8", default-features = false }
 
 # Used to test serialization when serde is enabled
