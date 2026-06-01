@@ -228,15 +228,6 @@ dependencies = [
 
 [[package]]
 name = "digest"
-version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d3dd60d1080a57a05ab032377049e0591415d2b31afd7028356dbf3cc6dcb066"
-dependencies = [
- "generic-array",
-]
-
-[[package]]
-name = "digest"
 version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9ed9a281f7bc9b7576e61468ba615a66a5c8cfdff42420a70aa82701a3b1e292"
@@ -253,7 +244,7 @@ checksum = "48c757948c5ede0e46177b7add2e67155f70e33c07fea8284df6576da70b3719"
 
 [[package]]
 name = "fast-paillier"
-version = "0.3.0"
+version = "0.3.2"
 dependencies = [
  "bytemuck",
  "ciborium",
@@ -391,11 +382,11 @@ checksum = "f9fbbcab51052fe104eb5e5d351cf728d30a5be1fe14d9be8a3b097481fb97de"
 
 [[package]]
 name = "libpaillier"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1181151f174d449370cb6cf4472191f1b602e77ce233d1b314f8dbbecb3a4b16"
+checksum = "7458a382a32264aac7c327803ee794edc3e56d7ef4c26381845eb546e2a4371d"
 dependencies = [
- "digest 0.10.7",
+ "digest",
  "serde",
  "serde_bare",
  "unknown_order",
@@ -768,11 +759,11 @@ checksum = "462eeb75aeb73aea900253ce739c8e18a67423fadf006037cd3ff27e82748a06"
 
 [[package]]
 name = "unknown_order"
-version = "0.6.0"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f420886bb5b008cb452cda7b2280acff3090a2ca142bda2d82e9a06d3fa0979c"
+checksum = "e01315a1e60b1cb726506d9be86bb6e7ddb9ce95a86b5e08d4d24ceff833187a"
 dependencies = [
- "digest 0.9.0",
+ "digest",
  "hex",
  "num-traits",
  "rand",
