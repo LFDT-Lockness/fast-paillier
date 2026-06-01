@@ -21,7 +21,7 @@ num-integer = { version = "0.1.46", optional = true, default-features = false }
 glass_pumpkin = { version = "1.8", optional = true, default-features = false }
 rand = { version = "0.8", optional = true, default-features = false }
 
-rand_core = "0.6"
+rand_core = "0.10"
 
 thiserror = { version = "2", default-features = false }
 
