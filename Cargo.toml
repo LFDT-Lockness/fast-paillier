@@ -12,13 +12,13 @@ keywords = ["paillier", "public-key", "encryption"]
 
 [dependencies]
 # Deps for rug
-rug = { version = "1.24", optional = true, default-features = false, features = ["std", "integer", "rand"] }
-bytemuck = { version = "1.5", features = ["derive"], optional = true }
+rug = { version = "1.30", optional = true, default-features = false, features = ["std", "integer", "rand"] }
+bytemuck = { version = "1.25", features = ["derive"], optional = true }
 # Deps for num-bigint
 num-bigint = { version = "0.4.6", optional = true, default-features = false, features = ["rand"] }
 num-traits = { version = "0.2.19", optional = true, default-features = false }
 num-integer = { version = "0.1.46", optional = true, default-features = false }
-glass_pumpkin = { version = "1.8", optional = true, default-features = false }
+glass_pumpkin = { version = "1.10", optional = true, default-features = false }
 rand = { version = "0.8", optional = true, default-features = false }
 
 rand_core = "0.6"
@@ -34,7 +34,7 @@ rand_dev = "0.1"
 rand = { version = "0.8", default-features = false }
 
 # Used to test serialization when serde is enabled
-rug = { version = "1.24", default-features = false, features = ["std", "integer", "rand", "serde"] }
+rug = { version = "1.30", default-features = false, features = ["std", "integer", "rand", "serde"] }
 serde_json = "1"
 ciborium = "0.2.2"
 
