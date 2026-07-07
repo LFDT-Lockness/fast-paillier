@@ -292,7 +292,15 @@ impl Integer {
     }
 
     // TODO reps is unused here, need to unify with rug
-    pub fn is_probably_prime(&self, _reps: u32, rng: &mut impl rand_core::RngCore) -> IsPrime {
+    // `glass_pumpkin::prime::check_with` (>= 1.10) accepts an
+    // `R: rand_core::Rng`, which is `RngCore + DerefMut + ?Sized` under
+    // rand_core 0.9; the additional `+ DerefMut` bound on the parameter
+    // here lets the call compile. No semantic change.
+    pub fn is_probably_prime(
+        &self,
+        _reps: u32,
+        rng: &mut (impl rand_core::RngCore + core::ops::DerefMut),
+    ) -> IsPrime {
         if self.cmp0().is_le() {
             IsPrime::No
         } else if glass_pumpkin::prime::check_with(self.0.magnitude(), rng) {
@@ -302,7 +310,11 @@ impl Integer {
         }
     }
 
-    pub fn generate_prime(rng: &mut impl rand_core::RngCore, bit_size: u32) -> Self {
+    // Same trait-bound widening as `is_probably_prime` above.
+    pub fn generate_prime(
+        rng: &mut (impl rand_core::RngCore + core::ops::DerefMut),
+        bit_size: u32,
+    ) -> Self {
         let mut x = Integer::zero();
         loop {
             x.assign_random_bits(bit_size, rng);
