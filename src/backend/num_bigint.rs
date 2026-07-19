@@ -3,6 +3,7 @@
 use alloc::{string::String, vec::Vec};
 
 use super::IsPrime;
+use dashu_int::{monty::MontgomeryRepr, ops::Gcd as _, UBig};
 use num_integer::Integer as _;
 use num_traits::Signed as _;
 
@@ -122,7 +123,11 @@ impl Integer {
         Integer(self.0.lcm(&other.0))
     }
     pub fn gcd_ref(&self, other: &Self) -> Self {
-        Integer(self.0.gcd(&other.0))
+        if self.significant_bits().max(other.significant_bits()) < 256 {
+            Integer(self.0.gcd(&other.0))
+        } else {
+            from_dashu((&to_dashu(&self.0)).gcd(&to_dashu(&other.0)))
+        }
     }
 
     pub fn cmp0(&self) -> core::cmp::Ordering {
@@ -143,11 +148,28 @@ impl Integer {
         self.pow_mod_ref(exponent, modulo)
     }
     pub fn pow_mod_ref(&self, exponent: &Self, modulo: &Self) -> Option<Self> {
-        let r = if exponent.0.is_negative() {
-            let nself = self.0.modinv(&modulo.0)?;
-            Integer(nself.modpow(&-&exponent.0, &modulo.0))
+        let r = if modulo > &Integer::one() && !modulo.is_even() {
+            let ring = MontgomeryRepr::new(to_dashu(&modulo.0));
+            let base = if self.cmp0().is_ge() && self < modulo {
+                to_dashu(&self.0)
+            } else {
+                to_dashu(&self.modulo_ref(modulo).0)
+            };
+            let base = ring.reduce(base);
+            let base = if exponent.0.is_negative() {
+                base.inv()?
+            } else {
+                base
+            };
+            from_dashu(base.pow(&to_dashu(&exponent.0)).residue())
         } else {
-            Integer(self.0.modpow(&exponent.0, &modulo.0))
+            let value = if exponent.0.is_negative() {
+                let nself = self.0.modinv(&modulo.0)?;
+                nself.modpow(&-&exponent.0, &modulo.0)
+            } else {
+                self.0.modpow(&exponent.0, &modulo.0)
+            };
+            Integer(value)
         };
         // Rug always produces a positive result here. Num-bigint always
         // produces a result between zero and modulo. When modulo is negative,
@@ -213,7 +235,17 @@ impl Integer {
         self.invert_ref(modulo)
     }
     pub fn invert_ref(&self, modulo: &Self) -> Option<Self> {
-        let r = self.0.modinv(&modulo.0).map(Integer)?;
+        let r = if modulo > &Integer::one() && !modulo.is_even() {
+            let ring = MontgomeryRepr::new(to_dashu(&modulo.0));
+            let value = if self.cmp0().is_ge() && self < modulo {
+                to_dashu(&self.0)
+            } else {
+                to_dashu(&self.modulo_ref(modulo).0)
+            };
+            from_dashu(ring.reduce(value).inv()?.residue())
+        } else {
+            self.0.modinv(&modulo.0).map(Integer)?
+        };
         // Rug always produces a positive result here. Num-bigint always
         // produces a result between zero and modulo. When modulo is negative,
         // adjust by it to obtain a result identical to rug
@@ -340,6 +372,14 @@ impl Integer {
         let r = (l_to_le * r_to_re).modulo(self);
         Some(r)
     }
+}
+
+fn to_dashu(value: &num_bigint::BigInt) -> UBig {
+    UBig::from_be_bytes(&value.magnitude().to_bytes_be())
+}
+
+fn from_dashu(value: UBig) -> Integer {
+    Integer::from_bytes_msf(&value.to_be_bytes())
 }
 
 /// Computes jacobi symbol of `a` over `n` multiplied at `mult`
