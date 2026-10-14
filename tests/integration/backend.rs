@@ -4,7 +4,6 @@
 
 use fast_paillier::backend::num_bigint::Integer as NbiInteger;
 use fast_paillier::backend::rug::Integer as RugInteger;
-use fast_paillier::backend::IsPrime;
 
 /// Generates a quickcheck test for a given method. Uses [`Arg`] to convert the
 /// arguments to either num-bigint or rug compatible, and uses [`HeteroEq`] to
@@ -137,6 +136,7 @@ make_quickcheck!(
         re: RefInteger,
     )
 );
+make_quickcheck!(to_bytes_msf(self: NbiInteger));
 
 #[test]
 fn round_random() {
@@ -176,19 +176,6 @@ impl HeteroEq<&mut RugInteger> for &mut NbiInteger {
         lhs == *rhs
     }
 }
-impl HeteroEq<IsPrime> for IsPrime {
-    fn equals(self, rhs: IsPrime) -> bool {
-        use IsPrime::*;
-        match (self, rhs) {
-            (No, No) => true,
-            (Yes | Probably, Yes | Probably) => true,
-            _ => {
-                eprintln!("{self:?} != {rhs:?}");
-                false
-            }
-        }
-    }
-}
 impl HeteroEq<Option<RugInteger>> for Option<NbiInteger> {
     fn equals(self, rhs: Option<RugInteger>) -> bool {
         let lhs = self.map(|x| {
@@ -199,26 +186,13 @@ impl HeteroEq<Option<RugInteger>> for Option<NbiInteger> {
         lhs == rhs
     }
 }
-
-macro_rules! trivial_equality {
-    ( $($t:ty,)+ ) => {
-        $(
-            impl HeteroEq <$t> for $t {
-                fn equals(self, rhs: $t) -> bool {
-                    eprintln!("{self:?} != {rhs:?}");
-                    self == rhs
-                }
-            }
-        )+
+impl<T> HeteroEq<T> for T
+where
+    T: Eq,
+{
+    fn equals(self, rhs: T) -> bool {
+        self == rhs
     }
-}
-trivial_equality! {
-    bool,
-    std::cmp::Ordering,
-    u32,
-    u64,
-    usize,
-    i32,
 }
 
 /// Helper trait to generate and convert values for quickcheck. Most methods
