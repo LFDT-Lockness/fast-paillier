@@ -20,7 +20,11 @@ impl Integer {
     /// assert_eq!(x.to_bytes_lsf(), vec![0x44, 0x33, 0x22, 0x11]);
     /// ```
     pub fn to_bytes_lsf(&self) -> Vec<u8> {
-        self.0.to_digits(rug::integer::Order::Lsf)
+        if self.cmp0().is_eq() {
+            alloc::vec![0u8]
+        } else {
+            self.0.to_digits(rug::integer::Order::Lsf)
+        }
     }
     /// Converts to bytes, with bytes representing _most_ significant base256
     /// digits appearing first. Discards the sign
@@ -32,7 +36,11 @@ impl Integer {
     /// assert_eq!(x.to_bytes_msf(), vec![0x11, 0x22, 0x33, 0x44]);
     /// ```
     pub fn to_bytes_msf(&self) -> Vec<u8> {
-        self.0.to_digits(rug::integer::Order::Msf)
+        if self.cmp0().is_eq() {
+            alloc::vec![0u8]
+        } else {
+            self.0.to_digits(rug::integer::Order::Msf)
+        }
     }
     /// Converts to bytes, with bytes representing _most_ significant base256
     /// digits appearing first
@@ -45,7 +53,7 @@ impl Integer {
     /// Sign::Negative));
     /// ```
     pub fn to_bytes_msf_signed(&self) -> (Vec<u8>, super::Sign) {
-        (self.0.to_digits(rug::integer::Order::Msf), self.sign())
+        (self.to_bytes_msf(), self.sign())
     }
     /// Converts bytes to Integer. Inverse of [`Integer::to_bytes_msf`]
     pub fn from_bytes_msf(bytes: &[u8]) -> Self {
