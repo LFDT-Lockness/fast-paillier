@@ -1,3 +1,9 @@
+## v0.3.3
+* Unify encoding of integer=0 across backends [#45]
+* Deserialize returns an error on invalid radix, instead of panicking [#45]
+
+[#45]: https://github.com/LFDT-Lockness/fast-paillier/pull/45
+
 ## v0.3.2
 * Make `random_below`, `random_below_ref`, `random_bits`, `random_bits_signed`,
   `assign_random_below`, `assign_random_bits` methods for both backends
