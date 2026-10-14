@@ -197,9 +197,12 @@ mod serialize {
                     D: serde::Deserializer<'de>,
                 {
                     let dict = DictFormat::deserialize(deserializer)?;
+                    if dict.radix < 2 || dict.radix > 36 {
+                        return Err(serde::de::Error::custom("Invalid radix"));
+                    }
 
                     <$integer>::from_str_radix(&dict.value, dict.radix)
-                        .ok_or(serde::de::Error::custom("Invalid hex number"))
+                        .ok_or(serde::de::Error::custom("Invalid number encoding"))
                 }
             }
         };
@@ -275,6 +278,20 @@ mod serialize {
             let json = r#"{"radix": 16, "value": "-ffffff"}"#;
             let num: Integer = serde_json::from_str(json).unwrap();
             assert_eq!(num, Integer::from(-0xffffff));
+        }
+
+        #[test]
+        fn decode_invalid_radix_returns_error() {
+            use alloc::{borrow::ToOwned, string::ToString};
+
+            for radix in [0, 1, 37, 100_u8] {
+                let json =
+                    r#"{"radix": "#.to_owned() + &radix.to_string() + r#", "value": "whatever"}"#;
+                let err = serde_json::from_str::<Integer>(&json)
+                    .unwrap_err()
+                    .to_string();
+                assert_eq!(err, "Invalid radix");
+            }
         }
     }
 }

@@ -69,6 +69,8 @@ impl Integer {
         }
     }
     /// Returns a string representation of the number for the specified radix
+    ///
+    /// **Panics** if radix is not in `2..=36`.
     pub fn to_str_radix(&self, radix: u16) -> String {
         self.0.to_string_radix(radix.into())
     }
