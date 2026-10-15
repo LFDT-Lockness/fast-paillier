@@ -154,6 +154,17 @@ fn round_random() {
     }
 }
 
+quickcheck::quickcheck! {
+    fn serde_json(nbi: NbiInteger) -> bool {
+        let r1 = serde_json::to_string(&nbi).unwrap();
+
+        let (bytes, sign) = nbi.to_bytes_msf_signed();
+        let rug = RugInteger::from_bytes_msf_signed(&bytes, sign);
+        let r2 = serde_json::to_string(&rug).unwrap();
+        r1 == r2
+    }
+}
+
 ///// Helper traits for macro /////
 
 /// Helper trait for tests above, to compare the results when they are of
