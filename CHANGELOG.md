@@ -1,7 +1,7 @@
 ## v0.3.3
 * Unify encoding of integer=0 across backends [#45]
 * Deserialize returns an error on invalid radix, instead of panicking [#45]
-* Fix primality test on num-bigint backend [#46]
+* Use `crypto-primes` for primality test instead of `glass_pumpkin` on num-bigint backend [#46]
 
 [#45]: https://github.com/LFDT-Lockness/fast-paillier/pull/45
 [#46]: https://github.com/LFDT-Lockness/fast-paillier/pull/46

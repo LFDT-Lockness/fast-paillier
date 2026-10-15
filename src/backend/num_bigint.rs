@@ -298,11 +298,21 @@ impl Integer {
         self
     }
 
-    // TODO reps is unused here, need to unify with rug
+    // TODO neither reps nor rng are used here, maybe we should get rid of them
     pub fn is_probably_prime(&self, _reps: u32, _rng: &mut impl rand_core::RngCore) -> IsPrime {
+        fn boxed_uint(n: &num_bigint::BigUint) -> crypto_bigint::BoxedUint {
+            crypto_bigint::cpubits! {
+                16 | 32 => { crypto_bigint::BoxedUint::from_words(n.iter_u32_digits()) }
+                64 => { crypto_bigint::BoxedUint::from_words(n.iter_u64_digits()) }
+            }
+        }
+
         if self.cmp0().is_le() {
             IsPrime::No
-        } else if glass_pumpkin::is_prime(self.0.magnitude()) {
+        } else if crypto_primes::is_prime(
+            crypto_primes::Flavor::Any,
+            &boxed_uint(self.0.magnitude()),
+        ) {
             IsPrime::Probably
         } else {
             IsPrime::No
@@ -315,7 +325,10 @@ impl Integer {
             x.assign_random_bits(bit_size, rng);
             x.set_bit(bit_size - 1, true);
             x |= 1u32;
-            if glass_pumpkin::is_prime(x.0.magnitude()) {
+            if matches!(
+                x.is_probably_prime(0, rng),
+                IsPrime::Probably | IsPrime::Yes
+            ) {
                 break x;
             }
         }
@@ -426,32 +439,6 @@ impl quickcheck::Arbitrary for Integer {
                 Some(prev.clone())
             }
         }))
-    }
-}
-
-/// This module was taken from <https://docs.rs/glass_pumpkin/2.0.0/src/glass_pumpkin/common.rs.html>
-/// preserving only function that performs primality test. The code was modified to work with
-/// older version of the `rand_core` crate.
-///
-/// We cannot use the latest version of the library as it requires introducing breaking changes
-/// in the code. We cannot use older version of the library, which has compatible `rand_core`
-/// dependency, as it is buggy.
-///
-/// We can migrate back to that dependency when we update our ecosystem to latest `rand_core`.
-mod glass_pumpkin {
-    /// Checks if a number is probably prime using the deterministic-base
-    /// Baillie-PSW test.
-    ///
-    /// The RNG parameter is retained for API compatibility and is not consumed.
-    pub fn is_prime(candidate: &num_bigint::BigUint) -> bool {
-        crypto_primes::is_prime(crypto_primes::Flavor::Any, &boxed_uint(candidate))
-    }
-
-    fn boxed_uint(n: &num_bigint::BigUint) -> crypto_bigint::BoxedUint {
-        crypto_bigint::cpubits! {
-            16 | 32 => { crypto_bigint::BoxedUint::from_words(n.iter_u32_digits()) }
-            64 => { crypto_bigint::BoxedUint::from_words(n.iter_u64_digits()) }
-        }
     }
 }
 
