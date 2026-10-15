@@ -215,6 +215,11 @@ impl Integer {
         self.invert_ref(modulo)
     }
     pub fn invert_ref(&self, modulo: &Self) -> Option<Self> {
+        // Nbi returns wrong result if modulo = 1, and self is negative. Correct response is `0`,
+        // but nbi gives `1`.
+        if self.cmp0().is_lt() && modulo.is_one() {
+            return Some(Self::zero());
+        }
         let r = self.0.modinv(&modulo.0).map(Integer)?;
         // Rug always produces a positive result here. Num-bigint always
         // produces a result between zero and modulo. When modulo is negative,
@@ -298,7 +303,7 @@ impl Integer {
         if self.cmp0().is_le() {
             IsPrime::No
         } else if glass_pumpkin::is_prime_baillie_psw(self.0.magnitude()) {
-            IsPrime::Yes
+            IsPrime::Probably
         } else {
             IsPrime::No
         }

@@ -20,12 +20,15 @@ macro_rules! make_quickcheck {
                 #[allow(unused_mut)]
                 let mut rug = RugInteger::from_bytes_msf_signed(&bytes, sign);
 
+
                 let r1 = {
                     // Since Arg::to_nbi takes mutable reference to the arg, we clone them,
                     // so the `rug` method below receives the same args as provided by
                     // quickcheck without any modification
+                    eprintln!("int: {nbi:?}");
                     $(
                         let mut $arg = $arg.clone();
+                        eprintln!("arg: {:?}", $arg);
                     )*
                     nbi.$method(
                         $(
@@ -125,7 +128,6 @@ make_quickcheck!(Self::random_bits(bits: SmallU32, rng: Prng));
 make_quickcheck!(Self::random_bits_signed(bits: SmallU32, rng: Prng));
 make_quickcheck!(assign_random_below(self: NbiInteger, modulo: Positive<RefInteger>, rng: Prng));
 make_quickcheck!(assign_random_bits(self: NbiInteger, bits: SmallU32, rng: Prng));
-make_quickcheck!(is_probably_prime(self: NbiInteger, const25: Const<25>, rng: Prng));
 make_quickcheck!(jacobi(self: NbiInteger, n: OddPositive));
 make_quickcheck!(
     combine(
@@ -162,6 +164,21 @@ quickcheck::quickcheck! {
         let rug = RugInteger::from_bytes_msf_signed(&bytes, sign);
         let r2 = serde_json::to_string(&rug).unwrap();
         r1 == r2
+    }
+
+    fn is_probably_prime(nbi: NbiInteger, rng: Prng) -> bool {
+        use fast_paillier::backend::IsPrime;
+
+        let mut rng = rng;
+        let (bytes, sign) = nbi.to_bytes_msf_signed();
+        let rug = RugInteger::from_bytes_msf_signed(&bytes, sign);
+
+        let r1 = nbi.is_probably_prime(25, &mut rng.rng);
+        let r2 = rug.is_probably_prime(25, &mut rng.rng);
+
+        // It doesn't matter if one backend returns `Yes`, and the other returns `Probably`.
+        // It matters to check if one returns `Yes|Probably`, and the other returns `No`
+        matches!((r1, r2), (IsPrime::Yes | IsPrime::Probably, IsPrime::Yes | IsPrime::Probably) | (IsPrime::No, IsPrime::No))
     }
 }
 
@@ -340,26 +357,6 @@ impl quickcheck::Arbitrary for SmallU32 {
                 Some(val)
             }
         }))
-    }
-}
-
-/// Helper quickcheck newtype: generates a constant u32. Convenient for the
-/// macros above, since they don't accept constant values
-#[derive(Clone, Debug)]
-struct Const<const N: u32>;
-impl<const N: u32> Arg<'_> for Const<N> {
-    type NbiArg = u32;
-    type RugArg = u32;
-    fn to_nbi(&mut self) -> Self::NbiArg {
-        N
-    }
-    fn to_rug(&mut self) -> Self::RugArg {
-        N
-    }
-}
-impl<const N: u32> quickcheck::Arbitrary for Const<N> {
-    fn arbitrary(_: &mut quickcheck::Gen) -> Self {
-        Const
     }
 }
 
