@@ -18,7 +18,6 @@ bytemuck = { version = "1.5", features = ["derive"], optional = true }
 num-bigint = { version = "0.4.6", optional = true, default-features = false, features = ["rand"] }
 num-traits = { version = "0.2.19", optional = true, default-features = false }
 num-integer = { version = "0.1.46", optional = true, default-features = false }
-glass_pumpkin = { version = "1.8", optional = true, default-features = false }
 rand = { version = "0.8", optional = true, default-features = false }
 
 rand_core = "0.6"
@@ -45,14 +44,14 @@ libpaillier = { version = "0.5", default-features = false, features = ["gmp"] }
 [features]
 default = ["backend-num-bigint", "std"]
 
-std = ["glass_pumpkin?/std"]
-no_std = ["glass_pumpkin?/no_std"]
+std = []
+no_std = []
 
 serde = ["dep:serde"]
 quickcheck = ["dep:quickcheck"]
 
 backend-rug = ["dep:rug", "dep:bytemuck"]
-backend-num-bigint = ["dep:num-bigint", "dep:num-traits", "dep:num-integer", "dep:glass_pumpkin", "dep:rand"]
+backend-num-bigint = ["dep:num-bigint", "dep:num-traits", "dep:num-integer", "dep:rand"]
 
 [[bench]]
 name = "comparison"
@@ -63,4 +62,3 @@ harness = false
 num-bigint.opt-level = 3
 num-traits.opt-level = 3
 num-integer.opt-level = 3
-glass_pumpkin.opt-level = 3
