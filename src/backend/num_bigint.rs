@@ -294,10 +294,10 @@ impl Integer {
     }
 
     // TODO reps is unused here, need to unify with rug
-    pub fn is_probably_prime(&self, _reps: u32, rng: &mut impl rand_core::RngCore) -> IsPrime {
+    pub fn is_probably_prime(&self, _reps: u32, _rng: &mut impl rand_core::RngCore) -> IsPrime {
         if self.cmp0().is_le() {
             IsPrime::No
-        } else if glass_pumpkin::is_prime(self.0.magnitude(), rng) {
+        } else if glass_pumpkin::is_prime_baillie_psw(self.0.magnitude()) {
             IsPrime::Yes
         } else {
             IsPrime::No
@@ -310,7 +310,7 @@ impl Integer {
             x.assign_random_bits(bit_size, rng);
             x.set_bit(bit_size - 1, true);
             x |= 1u32;
-            if glass_pumpkin::is_prime(x.0.magnitude(), rng) {
+            if glass_pumpkin::is_prime_baillie_psw(x.0.magnitude()) {
                 break x;
             }
         }
@@ -425,7 +425,7 @@ impl quickcheck::Arbitrary for Integer {
 }
 
 /// This module was taken from <https://docs.rs/glass_pumpkin/2.0.0/src/glass_pumpkin/common.rs.html>
-/// preserving only function that performs primarity test. The code was modified to work with
+/// preserving only function that performs primality test. The code was modified to work with
 /// older version of the `rand_core` crate.
 ///
 /// We cannot use the latest version of the library as it requires introducing breaking changes
@@ -434,39 +434,28 @@ impl quickcheck::Arbitrary for Integer {
 ///
 /// We can migrate back to that dependency when we update our ecosystem to latest `rand_core`.
 mod glass_pumpkin {
-    use num_bigint::{BigUint, RandBigInt as _};
+    use crypto_bigint::{nlimbs, BoxedUint, Odd, Uint};
+    use crypto_primes::hazmat::{lucas_test, LucasCheck, SelfridgeBase};
+    use num_bigint::BigUint;
     use num_integer::Integer as _;
     use num_traits::{One as _, ToPrimitive as _};
-    use rand_core::RngCore;
 
-    /// Test if number is prime by
+    /// Checks if a number is probably prime using the deterministic-base
+    /// Baillie-PSW test.
     ///
-    /// 1- Trial division by first 2048 primes
-    /// 2- Perform log2(bitlength) + 5 rounds of Miller-Rabin
-    ///    depending on the number of bits
-    pub fn is_prime<R: RngCore + ?Sized>(candidate: &BigUint, rng: &mut R) -> bool {
-        is_prime_with_rng(
-            candidate,
-            required_checks(candidate.bits() as usize),
-            false,
-            rng,
-        )
+    /// The RNG parameter is retained for API compatibility and is not consumed.
+    pub fn is_prime_baillie_psw(candidate: &BigUint) -> bool {
+        baillie_psw(candidate, false)
     }
 
-    fn is_prime_with_rng<R: RngCore + ?Sized>(
-        candidate: &BigUint,
-        checks: usize,
-        q_check: bool,
-        rng: &mut R,
-    ) -> bool {
-        if candidate.to_u64() == Some(2) {
+    /// Run the conventional Baillie-PSW probable-prime test.
+    fn baillie_psw(candidate: &BigUint, q_check: bool) -> bool {
+        if candidate == &BigUint::from(2_u8) {
             return true;
         }
-
-        if candidate.is_even() || candidate.is_one() {
+        if candidate < &BigUint::from(2_u8) || candidate.is_even() {
             return false;
         }
-
         if !passes_small_prime_sieve(candidate, q_check) {
             return false;
         }
@@ -477,19 +466,13 @@ mod glass_pumpkin {
             return true;
         }
 
-        // Finally, do a Miller-Rabin test
-        // See https://eprint.iacr.org/2018/749.pdf for good choices on appropriate number of tests
-        if !MillerRabin::new(candidate).random_checks(checks, rng) {
-            return false;
-        }
-
-        true
+        baillie_psw_presieved(candidate)
     }
 
-    /// Minimum checks to be considered okay
-    #[inline]
-    fn required_checks(bits: usize) -> usize {
-        (bits.checked_ilog2().unwrap_or(1) as usize) + 5
+    /// Run the two conventional BPSW components after small-factor screening:
+    /// a strong base-2 Miller-Rabin test and a strong Lucas-Selfridge test.
+    fn baillie_psw_presieved(candidate: &BigUint) -> bool {
+        MillerRabin::new(candidate).passes_bpsw()
     }
 
     /// Candidate-specific values shared by every Miller-Rabin base.
@@ -533,18 +516,49 @@ mod glass_pumpkin {
             false
         }
 
-        fn random_checks<R: RngCore + ?Sized>(&self, limit: usize, rng: &mut R) -> bool {
-            // Sampling [0, n-3) and adding two produces exactly [2, n-1),
-            // without rebuilding that span for every base.
-            let basis_span = self.candidate - 3_u8;
-            for _ in 0..limit {
-                let basis = rng.gen_biguint_below(&basis_span) + 2_u8;
-                if !self.check_base(&basis) {
-                    return false;
-                }
-            }
+        fn passes_bpsw(&self) -> bool {
+            self.check_base_two() && strong_lucas_selfridge(self.candidate)
+        }
 
-            true
+        fn check_base_two(&self) -> bool {
+            self.check_base(&BigUint::from(2_u8))
+        }
+    }
+
+    /// Strong Lucas probable-prime test with Selfridge's method-A parameters.
+    ///
+    /// This is the Lucas half of the conventional Baillie-PSW test. It chooses
+    /// `D = 5, -7, 9, -11, ...`, `P = 1`, and `Q = (1-D)/4`, then checks the
+    /// strong Lucas conditions for the odd part of `n + 1`.
+    fn strong_lucas_selfridge(n: &BigUint) -> bool {
+        if !cfg!(debug_assertions) {
+            match n.bits().div_ceil(8) {
+                128 => return strong_lucas_fixed::<{ nlimbs(1024) }>(n),
+                256 => return strong_lucas_fixed::<{ nlimbs(2048) }>(n),
+                512 => return strong_lucas_fixed::<{ nlimbs(4096) }>(n),
+                _ => {}
+            }
+        }
+
+        Odd::new(boxed_uint(n))
+            .into_option()
+            .is_some_and(|candidate| {
+                lucas_test(candidate, SelfridgeBase, LucasCheck::Strong).is_probably_prime()
+            })
+    }
+
+    fn strong_lucas_fixed<const LIMBS: usize>(n: &BigUint) -> bool {
+        Odd::new(Uint::<LIMBS>::from_be_slice(&n.to_bytes_be()))
+            .into_option()
+            .is_some_and(|candidate| {
+                lucas_test(candidate, SelfridgeBase, LucasCheck::Strong).is_probably_prime()
+            })
+    }
+
+    fn boxed_uint(n: &BigUint) -> BoxedUint {
+        crypto_bigint::cpubits! {
+            16 | 32 => { BoxedUint::from_words(n.iter_u32_digits()) }
+            64 => { BoxedUint::from_words(n.iter_u64_digits()) }
         }
     }
 
