@@ -121,6 +121,7 @@ pub fn sieve_generate_safe_primes(
     use crate::utils::small_primes;
 
     let amount = amount.min(small_primes::SMALL_PRIMES.len());
+
     let mut x = Integer::zero();
 
     'trial: loop {
@@ -133,16 +134,16 @@ pub fn sieve_generate_safe_primes(
 
         for &small_prime in &small_primes::SMALL_PRIMES[0..amount] {
             let mod_result = x.mod_u(small_prime);
-            if mod_result == (small_prime - 1) / 2 {
+            if mod_result == 0 || mod_result == (small_prime - 1) / 2 {
                 continue 'trial;
             }
         }
 
         // 25 taken same as one used in mpz_nextprime
-        if let IsPrime::Yes | IsPrime::Probably = x.is_probably_prime(25, rng) {
+        if let IsPrime::Yes | IsPrime::Probably = x.is_probably_prime_without_sieve() {
             x <<= 1;
             x += 1;
-            if let IsPrime::Yes | IsPrime::Probably = x.is_probably_prime(25, rng) {
+            if let IsPrime::Yes | IsPrime::Probably = x.is_probably_prime_without_sieve() {
                 return x;
             }
         }

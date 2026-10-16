@@ -251,7 +251,13 @@ impl Integer {
         self
     }
 
-    pub fn is_probably_prime(&self, reps: u32, _rng: &mut impl rand_core::RngCore) -> IsPrime {
+    /// Performs primality test without sieve optimization
+    #[cfg_attr(feature = "backend-num-bigint", allow(dead_code))] // if num-bigint backend is enabled, this function is unused
+    pub(super) fn is_probably_prime_without_sieve(&self) -> IsPrime {
+        self.is_probably_prime_without_sieve_with_reps(25)
+    }
+
+    fn is_probably_prime_without_sieve_with_reps(&self, reps: u32) -> IsPrime {
         if self.cmp0().is_le() {
             return IsPrime::No;
         }
@@ -263,14 +269,32 @@ impl Integer {
         }
     }
 
+    /// Performs primality tests agains provided integer
+    pub fn is_probably_prime(&self, reps: u32, _rng: &mut impl rand_core::RngCore) -> IsPrime {
+        for &small_prime in &crate::utils::small_primes::SMALL_PRIMES {
+            if self.mod_u(small_prime) == 0 {
+                return if *self == Integer::from(small_prime) {
+                    IsPrime::Yes
+                } else {
+                    IsPrime::No
+                };
+            }
+        }
+        self.is_probably_prime_without_sieve_with_reps(reps)
+    }
+
+    /// Generates a random prime
     pub fn generate_prime(rng: &mut impl rand_core::RngCore, bit_size: u32) -> Self {
         let mut x = Integer::zero();
         loop {
             x.assign_random_bits(bit_size, rng);
             x.set_bit(bit_size - 1, true);
             x |= 1u32;
-            if let IsPrime::Yes | IsPrime::Probably = x.is_probably_prime(25, rng) {
-                return x;
+            if matches!(
+                x.is_probably_prime(25, rng),
+                IsPrime::Probably | IsPrime::Yes
+            ) {
+                break x;
             }
         }
     }

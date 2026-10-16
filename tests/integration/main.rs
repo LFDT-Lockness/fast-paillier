@@ -9,6 +9,33 @@ use rand::Rng;
 mod backend;
 
 #[test]
+fn is_prime_many_times() {
+    for _ in 0..10000 {
+        let mut x = Integer::random_bits(1000, &mut rand_core::OsRng);
+        x |= 1;
+        let _ = std::hint::black_box(x.is_probably_prime(25, &mut rand_core::OsRng));
+    }
+}
+
+#[test]
+fn generate_prime() {
+    let mut rng = rand_dev::DevRng::new();
+
+    for _ in 0..10 {
+        let _x = std::hint::black_box(Integer::generate_prime(&mut rng, 1000));
+    }
+}
+
+#[test]
+fn generate_safe_prime() {
+    let mut rng = rand_dev::DevRng::new();
+
+    for _ in 0..10 {
+        let _x = std::hint::black_box(Integer::generate_safe_prime(&mut rng, 1000));
+    }
+}
+
+#[test]
 fn encrypt_decrypt() {
     let mut rng = rand_dev::DevRng::new();
     let dk = random_key_for_tests(&mut rng);
