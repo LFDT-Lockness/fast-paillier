@@ -250,3 +250,21 @@ fn sample_in_multgroup_of_negative_panics() {
         );
     }
 }
+
+#[test]
+fn gen_safe_primes_panics_on_small_bitsize() {
+    let mut rng = rand_dev::DevRng::new();
+    for bitsize in 0..100 {
+        let mut rng = rng.fork();
+        let result = std::panic::catch_unwind(move || {
+            fast_paillier::backend::sieve_generate_safe_primes(&mut rng, bitsize, 1000)
+        });
+        assert!(result.is_err());
+    }
+}
+
+#[test]
+fn gen_safe_primes_100bits() {
+    let mut rng = rand_dev::DevRng::new();
+    let _ = fast_paillier::backend::sieve_generate_safe_primes(&mut rng, 100, 1000);
+}

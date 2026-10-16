@@ -100,6 +100,9 @@ impl Integer {
     }
 
     /// Generates a random safe prime
+    ///
+    /// **Panics** if `bits < 100`. Note that cryptographic primes need to be way larger.
+    /// E.g. RSA requires primes to be at least 1536-bits.
     pub fn generate_safe_prime(rng: &mut impl rand_core::RngCore, bits: u32) -> Self {
         sieve_generate_safe_primes(rng, bits, 135)
     }
@@ -112,6 +115,9 @@ impl Integer {
 /// The best way to select the parameter is by trial. The one used by
 /// [`generate_safe_prime`] is indistinguishable from optimal for 500-1700 bit
 /// lengths.
+///
+/// **Panics** if `bits < 100`. Note that cryptographic primes need to be way larger.
+/// E.g. RSA requires primes to be at least 1536-bits.
 pub fn sieve_generate_safe_primes(
     rng: &mut impl rand_core::RngCore,
     bits: u32,
@@ -119,6 +125,11 @@ pub fn sieve_generate_safe_primes(
 ) -> Integer {
     use crate::backend::IsPrime;
     use crate::utils::small_primes;
+
+    // sieve optimization, the way it is written, rejects valid safe primes of small bitsize.
+    // The fix would be to use subset of `small_primes` for small `bits`, but we never want
+    // to generate small safe primes, so no point in complicating the code.
+    assert!(bits >= 100, "algorithm cannot generate small primes");
 
     let amount = amount.min(small_primes::SMALL_PRIMES.len());
     let mut x = Integer::zero();
