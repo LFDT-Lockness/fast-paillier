@@ -158,6 +158,8 @@ make_quickcheck!(
 make_quickcheck!(to_bytes_msf(self: NbiInteger));
 make_quickcheck!(to_bytes_msf_signed(self: NbiInteger));
 make_quickcheck!(to_bytes_lsf(self: NbiInteger));
+make_quickcheck!(abs(self: NbiInteger));
+make_quickcheck!(sign(self: NbiInteger));
 
 #[test]
 fn round_random() {
