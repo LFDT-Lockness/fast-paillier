@@ -393,3 +393,31 @@ impl quickcheck::Arbitrary for Integer {
         }))
     }
 }
+
+// num_bigint have its own implementation of shl/shr, so we have to write manual dummy
+// implementation for rug too, instead of outsourcing it to the macro that handles the rest
+// arithmetic ops
+impl core::ops::Shl<i32> for Integer {
+    type Output = Integer;
+    fn shl(self, rhs: i32) -> Self::Output {
+        Self(self.0 << rhs)
+    }
+}
+impl core::ops::Shr<i32> for Integer {
+    type Output = Integer;
+    fn shr(self, rhs: i32) -> Self::Output {
+        Self(self.0 >> rhs)
+    }
+}
+impl core::ops::Shl<i32> for &Integer {
+    type Output = Integer;
+    fn shl(self, rhs: i32) -> Self::Output {
+        self.clone() << rhs
+    }
+}
+impl core::ops::Shr<i32> for &Integer {
+    type Output = Integer;
+    fn shr(self, rhs: i32) -> Self::Output {
+        self.clone() >> rhs
+    }
+}

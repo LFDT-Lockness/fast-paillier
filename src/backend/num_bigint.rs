@@ -471,6 +471,50 @@ fn last_limb(x: &num_bigint::BigInt) -> u32 {
     x.magnitude().iter_u32_digits().next().unwrap_or(0)
 }
 
+// num-bigint panics if `<<` or `>>` are called with negative value of i32.
+// rug just reverses the direction: (x << -n) == (x >> n).
+// We manually reproduce rug's behavior.
+impl core::ops::Shl<i32> for Integer {
+    type Output = Integer;
+    fn shl(self, rhs: i32) -> Self::Output {
+        if rhs >= 0 {
+            Self(self.0 << rhs)
+        } else if rhs == i32::MIN {
+            // `-rhs` would overflow i32 here
+            // i32::MIN = -(i32::MAX + 1)
+            Self(self.0 >> i32::MAX >> 1)
+        } else {
+            Self(self.0 >> (-rhs))
+        }
+    }
+}
+impl core::ops::Shr<i32> for Integer {
+    type Output = Integer;
+    fn shr(self, rhs: i32) -> Self::Output {
+        if rhs >= 0 {
+            Self(self.0 >> rhs)
+        } else if rhs == i32::MIN {
+            // `-rhs` would overflow i32 here
+            // i32::MIN = -(i32::MAX + 1)
+            Self(self.0 << i32::MAX << 1)
+        } else {
+            Self(self.0 << (-rhs))
+        }
+    }
+}
+impl core::ops::Shl<i32> for &Integer {
+    type Output = Integer;
+    fn shl(self, rhs: i32) -> Self::Output {
+        self.clone() << rhs
+    }
+}
+impl core::ops::Shr<i32> for &Integer {
+    type Output = Integer;
+    fn shr(self, rhs: i32) -> Self::Output {
+        self.clone() >> rhs
+    }
+}
+
 #[cfg(feature = "quickcheck")]
 impl quickcheck::Arbitrary for Integer {
     fn arbitrary(g: &mut quickcheck::Gen) -> Self {
