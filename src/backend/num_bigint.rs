@@ -156,6 +156,10 @@ impl Integer {
         self.pow_mod_ref(exponent, modulo)
     }
     pub fn pow_mod_ref(&self, exponent: &Self, modulo: &Self) -> Option<Self> {
+        // num-bigint panics if modulo is zero; return `None` instead
+        if modulo.cmp0().is_eq() {
+            return None;
+        }
         let r = if exponent.0.is_negative() {
             let nself = self.0.modinv(&modulo.0)?;
             Integer(nself.modpow(&-&exponent.0, &modulo.0))

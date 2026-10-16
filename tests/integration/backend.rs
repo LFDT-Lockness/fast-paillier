@@ -103,10 +103,10 @@ make_quickcheck!(lcm_ref(self: NbiInteger, other: RefInteger));
 make_quickcheck!(gcd_ref(self: NbiInteger, other: RefInteger));
 make_quickcheck!(cmp0(self: NbiInteger));
 make_quickcheck!(
-    pow_mod(self: NbiInteger, exponent: RefInteger, modulo: NonZero<RefInteger>)
+    pow_mod(self: NbiInteger, exponent: RefInteger, modulo: RefInteger)
 );
 make_quickcheck!(
-    pow_mod_ref(self: NbiInteger, exponent: RefInteger, modulo: NonZero<RefInteger>)
+    pow_mod_ref(self: NbiInteger, exponent: RefInteger, modulo: RefInteger)
 );
 make_quickcheck!(Self::u_pow_u(base: u32, exponent: SmallU32));
 make_quickcheck!(square(self: NbiInteger));
