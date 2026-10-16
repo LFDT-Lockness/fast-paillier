@@ -1,6 +1,6 @@
 [package]
 name = "fast-paillier"
-version = "0.3.2"
+version = "0.3.3"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "Optimized Paillier encryption scheme"
@@ -18,7 +18,8 @@ bytemuck = { version = "1.5", features = ["derive"], optional = true }
 num-bigint = { version = "0.4.6", optional = true, default-features = false, features = ["rand"] }
 num-traits = { version = "0.2.19", optional = true, default-features = false }
 num-integer = { version = "0.1.46", optional = true, default-features = false }
-glass_pumpkin = { version = "1.8", optional = true, default-features = false }
+crypto-bigint = { version = "0.7", default-features = false, features = ["alloc"], optional = true }
+crypto-primes = { version = "0.7", default-features = false, optional = true }
 rand = { version = "0.8", optional = true, default-features = false }
 
 rand_core = "0.6"
@@ -45,14 +46,17 @@ libpaillier = { version = "0.5", default-features = false, features = ["gmp"] }
 [features]
 default = ["backend-num-bigint", "std"]
 
-std = ["glass_pumpkin?/std"]
-no_std = ["glass_pumpkin?/no_std"]
+std = []
+no_std = []
 
 serde = ["dep:serde"]
 quickcheck = ["dep:quickcheck"]
 
 backend-rug = ["dep:rug", "dep:bytemuck"]
-backend-num-bigint = ["dep:num-bigint", "dep:num-traits", "dep:num-integer", "dep:glass_pumpkin", "dep:rand"]
+backend-num-bigint = [
+  "dep:num-bigint", "dep:num-traits", "dep:num-integer", "dep:rand", "dep:crypto-bigint",
+  "dep:crypto-primes",
+]
 
 [[bench]]
 name = "comparison"
@@ -63,4 +67,8 @@ harness = false
 num-bigint.opt-level = 3
 num-traits.opt-level = 3
 num-integer.opt-level = 3
-glass_pumpkin.opt-level = 3
+
+# See https://docs.rs/cpubits/0.1.1/cpubits/#lint-configuration-for-cfgcpubits
+[lints.rust.unexpected_cfgs]
+level = "warn"
+check-cfg = ['cfg(cpubits, values("16", "32", "64"))']

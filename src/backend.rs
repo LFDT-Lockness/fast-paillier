@@ -197,9 +197,12 @@ mod serialize {
                     D: serde::Deserializer<'de>,
                 {
                     let dict = DictFormat::deserialize(deserializer)?;
+                    if dict.radix < 2 || dict.radix > 36 {
+                        return Err(serde::de::Error::custom("Invalid radix"));
+                    }
 
                     <$integer>::from_str_radix(&dict.value, dict.radix)
-                        .ok_or(serde::de::Error::custom("Invalid hex number"))
+                        .ok_or(serde::de::Error::custom("Invalid number encoding"))
                 }
             }
         };
@@ -221,46 +224,70 @@ mod serialize {
         #[test]
         fn rug_compatible_deser_json() {
             let mut rng = rand_dev::DevRng::new();
-            let num = crate::backend::rug::Integer::random_bits(128, &mut rng).to_rug();
-            let num_s = serde_json::to_vec(&num).unwrap();
-            let num_: Integer = serde_json::from_slice(&num_s).unwrap();
+            let nums = [
+                crate::backend::rug::Integer::random_bits(128, &mut rng).to_rug(),
+                -crate::backend::rug::Integer::random_bits(128, &mut rng).to_rug(),
+                crate::backend::rug::Integer::zero().to_rug(),
+            ];
+            for num in nums {
+                let num_s = serde_json::to_vec(&num).unwrap();
+                let num_: Integer = serde_json::from_slice(&num_s).unwrap();
 
-            assert_eq!(num.to_string(), num_.to_string());
+                assert_eq!(num.to_string(), num_.to_string());
+            }
         }
 
         #[cfg(feature = "backend-rug")]
         #[test]
         fn rug_compatible_ser_json() {
             let mut rng = rand_dev::DevRng::new();
-            let num = Integer::random_bits(128, &mut rng);
-            let num_s = serde_json::to_vec(&num).unwrap();
-            let num_: rug::Integer = serde_json::from_slice(&num_s).unwrap();
+            let nums = [
+                Integer::random_bits(128, &mut rng),
+                -Integer::random_bits(128, &mut rng),
+                Integer::zero(),
+            ];
+            for num in nums {
+                let num_s = serde_json::to_vec(&num).unwrap();
+                let num_: rug::Integer = serde_json::from_slice(&num_s).unwrap();
 
-            assert_eq!(num.to_string(), num_.to_string());
+                assert_eq!(num.to_string(), num_.to_string());
+            }
         }
 
         #[cfg(feature = "backend-rug")]
         #[test]
         fn rug_compatible_deser_cbor() {
             let mut rng = rand_dev::DevRng::new();
-            let num = crate::backend::rug::Integer::random_bits(128, &mut rng).to_rug();
-            let mut buf = Vec::new();
-            ciborium::into_writer(&num, &mut buf).unwrap();
-            let num_: Integer = ciborium::from_reader(buf.as_slice()).unwrap();
+            let nums = [
+                crate::backend::rug::Integer::random_bits(128, &mut rng).to_rug(),
+                -crate::backend::rug::Integer::random_bits(128, &mut rng).to_rug(),
+                crate::backend::rug::Integer::zero().to_rug(),
+            ];
+            for num in nums {
+                let mut buf = Vec::new();
+                ciborium::into_writer(&num, &mut buf).unwrap();
+                let num_: Integer = ciborium::from_reader(buf.as_slice()).unwrap();
 
-            assert_eq!(num.to_string(), num_.to_string());
+                assert_eq!(num.to_string(), num_.to_string());
+            }
         }
 
         #[cfg(feature = "backend-rug")]
         #[test]
         fn rug_compatible_ser_cbor() {
             let mut rng = rand_dev::DevRng::new();
-            let num = Integer::random_bits(128, &mut rng);
-            let mut buf = Vec::new();
-            ciborium::into_writer(&num, &mut buf).unwrap();
-            let num_: rug::Integer = ciborium::from_reader(buf.as_slice()).unwrap();
+            let nums = [
+                Integer::random_bits(128, &mut rng),
+                -Integer::random_bits(128, &mut rng),
+                Integer::zero(),
+            ];
+            for num in nums {
+                let mut buf = Vec::new();
+                ciborium::into_writer(&num, &mut buf).unwrap();
+                let num_: rug::Integer = ciborium::from_reader(buf.as_slice()).unwrap();
 
-            assert_eq!(num.to_string(), num_.to_string());
+                assert_eq!(num.to_string(), num_.to_string());
+            }
         }
 
         #[test]
@@ -275,6 +302,20 @@ mod serialize {
             let json = r#"{"radix": 16, "value": "-ffffff"}"#;
             let num: Integer = serde_json::from_str(json).unwrap();
             assert_eq!(num, Integer::from(-0xffffff));
+        }
+
+        #[test]
+        fn decode_invalid_radix_returns_error() {
+            use alloc::{borrow::ToOwned, string::ToString};
+
+            for radix in [0, 1, 37, 100_u8] {
+                let json =
+                    r#"{"radix": "#.to_owned() + &radix.to_string() + r#", "value": "whatever"}"#;
+                let err = serde_json::from_str::<Integer>(&json)
+                    .unwrap_err()
+                    .to_string();
+                assert_eq!(err, "Invalid radix");
+            }
         }
     }
 }

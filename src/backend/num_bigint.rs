@@ -68,6 +68,8 @@ impl Integer {
         }
     }
     /// Returns a string representation of the number for the specified radix
+    ///
+    /// **Panics** if radix is not in `2..=36`.
     pub fn to_str_radix(&self, radix: u16) -> String {
         self.0.to_str_radix(radix.into())
     }
@@ -213,6 +215,11 @@ impl Integer {
         self.invert_ref(modulo)
     }
     pub fn invert_ref(&self, modulo: &Self) -> Option<Self> {
+        // Nbi returns wrong result if modulo = 1, and self is negative. Correct response is `0`,
+        // but nbi gives `1`.
+        if self.cmp0().is_lt() && modulo.is_one() {
+            return Some(Self::zero());
+        }
         let r = self.0.modinv(&modulo.0).map(Integer)?;
         // Rug always produces a positive result here. Num-bigint always
         // produces a result between zero and modulo. When modulo is negative,
@@ -291,12 +298,22 @@ impl Integer {
         self
     }
 
-    // TODO reps is unused here, need to unify with rug
-    pub fn is_probably_prime(&self, _reps: u32, rng: &mut impl rand_core::RngCore) -> IsPrime {
+    // TODO neither reps nor rng are used here, maybe we should get rid of them
+    pub fn is_probably_prime(&self, _reps: u32, _rng: &mut impl rand_core::RngCore) -> IsPrime {
+        fn boxed_uint(n: &num_bigint::BigUint) -> crypto_bigint::BoxedUint {
+            crypto_bigint::cpubits! {
+                16 | 32 => { crypto_bigint::BoxedUint::from_words(n.iter_u32_digits()) }
+                64 => { crypto_bigint::BoxedUint::from_words(n.iter_u64_digits()) }
+            }
+        }
+
         if self.cmp0().is_le() {
             IsPrime::No
-        } else if glass_pumpkin::prime::check_with(self.0.magnitude(), rng) {
-            IsPrime::Yes
+        } else if crypto_primes::is_prime(
+            crypto_primes::Flavor::Any,
+            &boxed_uint(self.0.magnitude()),
+        ) {
+            IsPrime::Probably
         } else {
             IsPrime::No
         }
@@ -308,7 +325,10 @@ impl Integer {
             x.assign_random_bits(bit_size, rng);
             x.set_bit(bit_size - 1, true);
             x |= 1u32;
-            if glass_pumpkin::prime::check_with(x.0.magnitude(), rng) {
+            if matches!(
+                x.is_probably_prime(0, rng),
+                IsPrime::Probably | IsPrime::Yes
+            ) {
                 break x;
             }
         }
