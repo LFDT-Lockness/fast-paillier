@@ -121,7 +121,6 @@ pub fn sieve_generate_safe_primes(
     use crate::utils::small_primes;
 
     let amount = amount.min(small_primes::SMALL_PRIMES.len());
-
     let mut x = Integer::zero();
 
     'trial: loop {
