@@ -76,6 +76,18 @@ impl Integer {
     }
     /// Parses the integer using the given radix
     pub fn from_str_radix(s: &str, radix: u16) -> Option<Self> {
+        // rug accepts strings that have whitespaces in them, integer is parsed while
+        // ignoring whitespaces, even in the middle of the number. This behavior is
+        // different from num-bigint backend, and it is strange. We manually restrict
+        // strings to be ascii alphanum
+        if !s
+            .chars()
+            .enumerate()
+            .skip_while(|&(i, c)| i == 0 && (c == '+' || c == '-'))
+            .all(|(_, c)| c.is_ascii_alphanumeric())
+        {
+            return None;
+        }
         rug::Integer::from_str_radix(s, radix.into())
             .ok()
             .map(Integer)
@@ -206,11 +218,27 @@ impl Integer {
         self
     }
 
+    /// Generates random integer from range 0..self (exlusive)
+    ///
+    /// **Panics** if `self` is not positive number
     pub fn random_below(self, rng: &mut impl rand_core::RngCore) -> Self {
+        assert_eq!(
+            self.cmp0(),
+            core::cmp::Ordering::Greater,
+            "random_below: upper bound must be positive"
+        );
         let mut rng = external_rand(rng);
         Integer(self.0.random_below(&mut rng))
     }
+    /// Generates random integer from range 0..self (exlusive)
+    ///
+    /// **Panics** if `self` is not positive number
     pub fn random_below_ref(&self, rng: &mut impl rand_core::RngCore) -> Self {
+        assert_eq!(
+            self.cmp0(),
+            core::cmp::Ordering::Greater,
+            "random_below: upper bound must be positive"
+        );
         let mut rng = external_rand(rng);
         Integer(self.0.random_below_ref(&mut rng).complete())
     }
@@ -229,11 +257,19 @@ impl Integer {
         }
     }
 
+    /// Generates random integer from range 0..modulo (exlusive) and assigns to `self`
+    ///
+    /// **Panics** if modulo is not positive
     pub fn assign_random_below(
         &mut self,
         modulo: &Self,
         rng: &mut impl rand_core::RngCore,
     ) -> &mut Self {
+        assert_eq!(
+            modulo.cmp0(),
+            core::cmp::Ordering::Greater,
+            "random_below: upper bound must be positive"
+        );
         let mut rng = external_rand(rng);
         let r = modulo.0.random_below_ref(&mut rng);
         rug::Assign::assign(&mut self.0, r);
@@ -284,7 +320,10 @@ impl Integer {
     }
 
     /// Generates a random prime
+    ///
+    /// **Panics** if `bit_size < 2` as there are no valid primes of this bit size.
     pub fn generate_prime(rng: &mut impl rand_core::RngCore, bit_size: u32) -> Self {
+        assert!(bit_size >= 2, "there are no primes of bit size less than 2");
         let mut x = Integer::zero();
         loop {
             x.assign_random_bits(bit_size, rng);
@@ -299,7 +338,14 @@ impl Integer {
         }
     }
 
+    /// Compute jacobi symbol of a over n
+    ///
+    /// Requires odd `n >= 3`. **Panics** if `n` is not in required domain.
     pub fn jacobi(&self, n: &Self) -> i32 {
+        #[allow(clippy::panic)]
+        if n.0.is_even() || n.0 <= 2 {
+            panic!("n should be an odd number larger than 2");
+        }
         self.0.jacobi(&n.0)
     }
 
@@ -344,9 +390,37 @@ impl quickcheck::Arbitrary for Integer {
             if prev.cmp0().is_eq() {
                 None
             } else {
-                prev >>= 1;
+                prev /= 2;
                 Some(prev.clone())
             }
         }))
+    }
+}
+
+// num_bigint have its own implementation of shl/shr, so we have to write manual dummy
+// implementation for rug too, instead of outsourcing it to the macro that handles the rest
+// arithmetic ops
+impl core::ops::Shl<i32> for Integer {
+    type Output = Integer;
+    fn shl(self, rhs: i32) -> Self::Output {
+        Self(self.0 << rhs)
+    }
+}
+impl core::ops::Shr<i32> for Integer {
+    type Output = Integer;
+    fn shr(self, rhs: i32) -> Self::Output {
+        Self(self.0 >> rhs)
+    }
+}
+impl core::ops::Shl<i32> for &Integer {
+    type Output = Integer;
+    fn shl(self, rhs: i32) -> Self::Output {
+        self.clone() << rhs
+    }
+}
+impl core::ops::Shr<i32> for &Integer {
+    type Output = Integer;
+    fn shr(self, rhs: i32) -> Self::Output {
+        self.clone() >> rhs
     }
 }

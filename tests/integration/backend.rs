@@ -30,11 +30,16 @@ macro_rules! make_quickcheck {
                         let mut $arg = $arg.clone();
                         eprintln!("arg: {:?}", $arg);
                     )*
-                    nbi.$method(
-                        $(
-                            Arg::to_nbi( &mut $arg ),
-                        )*
+                    std::panic::catch_unwind(move ||
+                        nbi.$method(
+                            $(
+                                Arg::to_nbi( &mut $arg ),
+                            )*
+                        )
+                        .clone()
                     )
+                    .inspect_err(|_e| eprintln!("nbi panicked"))
+                    .ok()
                 };
                 let r2 = {
                     // Change args mutability
@@ -42,14 +47,26 @@ macro_rules! make_quickcheck {
                         let mut $arg = $arg;
                     )*
 
-                    rug.$method(
-                        $(
-                            Arg::to_rug( &mut $arg ),
-                        )*
+                    std::panic::catch_unwind(move ||
+                        rug.$method(
+                            $(
+                                Arg::to_rug( &mut $arg ),
+                            )*
+                        )
+                        .clone()
                     )
+                    .inspect_err(|_e| eprintln!("rug panicked"))
+                    .ok()
                 };
 
-                r1.equals(r2)
+                match (r1, r2) {
+                    (Some(r1), Some(r2)) => r1.equals(r2),
+                    (None, None) => true,
+                    _ => {
+                        eprintln!("one backend panicked while the other didn't");
+                        false
+                    },
+                }
             }
         }
     };
@@ -103,10 +120,10 @@ make_quickcheck!(lcm_ref(self: NbiInteger, other: RefInteger));
 make_quickcheck!(gcd_ref(self: NbiInteger, other: RefInteger));
 make_quickcheck!(cmp0(self: NbiInteger));
 make_quickcheck!(
-    pow_mod(self: NbiInteger, exponent: RefInteger, modulo: NonZero<RefInteger>)
+    pow_mod(self: NbiInteger, exponent: RefInteger, modulo: RefInteger)
 );
 make_quickcheck!(
-    pow_mod_ref(self: NbiInteger, exponent: RefInteger, modulo: NonZero<RefInteger>)
+    pow_mod_ref(self: NbiInteger, exponent: RefInteger, modulo: RefInteger)
 );
 make_quickcheck!(Self::u_pow_u(base: u32, exponent: SmallU32));
 make_quickcheck!(square(self: NbiInteger));
@@ -119,19 +136,19 @@ make_quickcheck!(modulo_mut(self: NbiInteger, divisor: Positive<RefInteger>));
 make_quickcheck!(mod_u(self: NbiInteger, divisor: Positive<u32>));
 make_quickcheck!(significant_bits(self: NbiInteger));
 make_quickcheck!(significant_dwords(self: NbiInteger));
-make_quickcheck!(invert(self: NbiInteger, modulo: Positive<RefInteger>));
-make_quickcheck!(invert_ref(self: NbiInteger, modulo: Positive<RefInteger>));
+make_quickcheck!(invert(self: NbiInteger, modulo: RefInteger));
+make_quickcheck!(invert_ref(self: NbiInteger, modulo: RefInteger));
 make_quickcheck!(set_bit(self: NbiInteger, index: SmallU32, value: bool));
-make_quickcheck!(random_below(self: Positive<NbiInteger>, rng: Prng));
-make_quickcheck!(random_below_ref(self: Positive<NbiInteger>, rng: Prng));
+make_quickcheck!(random_below(self: NbiInteger, rng: Prng));
+make_quickcheck!(random_below_ref(self: NbiInteger, rng: Prng));
 make_quickcheck!(Self::random_bits(bits: SmallU32, rng: Prng));
 make_quickcheck!(Self::random_bits_signed(bits: SmallU32, rng: Prng));
-make_quickcheck!(assign_random_below(self: NbiInteger, modulo: Positive<RefInteger>, rng: Prng));
+make_quickcheck!(assign_random_below(self: NbiInteger, modulo: RefInteger, rng: Prng));
 make_quickcheck!(assign_random_bits(self: NbiInteger, bits: SmallU32, rng: Prng));
-make_quickcheck!(jacobi(self: NbiInteger, n: OddPositive));
+make_quickcheck!(jacobi(self: NbiInteger, n: RefInteger));
 make_quickcheck!(
     combine(
-        self: NonZero<NbiInteger>,
+        self: NbiInteger,
         l: RefInteger,
         le: RefInteger,
         r: RefInteger,
@@ -141,6 +158,8 @@ make_quickcheck!(
 make_quickcheck!(to_bytes_msf(self: NbiInteger));
 make_quickcheck!(to_bytes_msf_signed(self: NbiInteger));
 make_quickcheck!(to_bytes_lsf(self: NbiInteger));
+make_quickcheck!(abs(self: NbiInteger));
+make_quickcheck!(sign(self: NbiInteger));
 
 #[test]
 fn round_random() {
@@ -157,29 +176,93 @@ fn round_random() {
 }
 
 quickcheck::quickcheck! {
-    fn serde_json(nbi: NbiInteger) -> bool {
-        let r1 = serde_json::to_string(&nbi).unwrap();
-
-        let (bytes, sign) = nbi.to_bytes_msf_signed();
-        let rug = RugInteger::from_bytes_msf_signed(&bytes, sign);
-        let r2 = serde_json::to_string(&rug).unwrap();
+    fn serde_json(x: RefInteger) -> bool {
+        let r1 = serde_json::to_string(&x.0).unwrap();
+        let r2 = serde_json::to_string(&x.1).unwrap();
         r1 == r2
     }
 
-    fn is_probably_prime(nbi: NbiInteger, rng: Prng) -> bool {
+    fn is_probably_prime(x: RefInteger, rng: Prng) -> bool {
         use fast_paillier::backend::IsPrime;
 
         let mut rng = rng;
-        let (bytes, sign) = nbi.to_bytes_msf_signed();
-        let rug = RugInteger::from_bytes_msf_signed(&bytes, sign);
 
-        let r1 = nbi.is_probably_prime(25, &mut rng.rng);
-        let r2 = rug.is_probably_prime(25, &mut rng.rng);
+        let r1 = x.0.is_probably_prime(25, &mut rng.rng);
+        let r2 = x.1.is_probably_prime(25, &mut rng.rng);
 
         // It doesn't matter if one backend returns `Yes`, and the other returns `Probably`.
         // It matters to check if one returns `Yes|Probably`, and the other returns `No`
         matches!((r1, r2), (IsPrime::Yes | IsPrime::Probably, IsPrime::Yes | IsPrime::Probably) | (IsPrime::No, IsPrime::No))
     }
+
+    fn from_radix(s: AsciiString) -> bool {
+        let nbi = NbiInteger::from_str_radix(&s.0, 16);
+        let rug = RugInteger::from_str_radix(&s.0, 16);
+        eprintln!("{nbi:?}, {rug:?}");
+        match (nbi, rug) {
+            (Some(a), Some(b)) => a.equals(b),
+            (None, None) => true,
+            _ => false
+        }
+    }
+
+    fn shl_i32(x: RefInteger, shift: i32) -> bool {
+        let shift = shift % 100;
+        let r1 = x.0 << shift;
+        let r2 = x.1 << shift;
+        r1.equals(r2)
+    }
+    fn shr_i32(x: RefInteger, shift: i32) -> bool {
+        let shift = shift % 100;
+        let r1 = x.0 >> shift;
+        let r2 = x.1 >> shift;
+        r1.equals(r2)
+    }
+    fn shl_u32(x: RefInteger, shift: u32) -> bool {
+        let shift = shift % 100;
+        let r1 = x.0 << shift;
+        let r2 = x.1 << shift;
+        r1.equals(r2)
+    }
+    fn shr_u32(x: RefInteger, shift: u32) -> bool {
+        let shift = shift % 100;
+        let r1 = x.0 >> shift;
+        let r2 = x.1 >> shift;
+        r1.equals(r2)
+    }
+    fn shl_usize(x: RefInteger, shift: usize) -> bool {
+        let shift = shift % 100;
+        let r1 = x.0 << shift;
+        let r2 = x.1 << shift;
+        r1.equals(r2)
+    }
+    fn shr_usize(x: RefInteger, shift: usize) -> bool {
+        let shift = shift % 100;
+        let r1 = x.0 >> shift;
+        let r2 = x.1 >> shift;
+        r1.equals(r2)
+    }
+}
+
+#[test]
+fn shift_by_i32_min() {
+    for x in [5i32, -5, 0, 1, -1] {
+        let nbi = NbiInteger::from(x);
+        let rug = RugInteger::from(x);
+
+        // x << i32::MIN == x >> 2^31: 0 for non-negative x, -1 for negative x
+        assert!((&nbi << i32::MIN).equals(&rug << i32::MIN));
+        assert!((nbi.clone() << i32::MIN).equals(rug.clone() << i32::MIN));
+        let expected = if x < 0 { -1 } else { 0 };
+        assert_eq!(nbi << i32::MIN, NbiInteger::from(expected));
+    }
+
+    // x >> i32::MIN == x << 2^31, which allocates ton of memory on heap for non-zero x, so only
+    // check zero to make sure it doesn't panic
+    let nbi = NbiInteger::from(0u8);
+    let rug = RugInteger::from(0u8);
+    assert!((&nbi >> i32::MIN).equals(&rug >> i32::MIN));
+    assert!((nbi >> i32::MIN).equals(rug >> i32::MIN));
 }
 
 ///// Helper traits for macro /////
@@ -292,38 +375,6 @@ impl From<u8> for RefInteger {
             NbiInteger::from(u32::from(value)),
             RugInteger::from(u32::from(value)),
         )
-    }
-}
-
-/// Helper quickcheck newtype. Similar to [`RefInteger`], but generates integers
-/// that are odd and larger than 2 (to be used as an argument to `jacobi`)
-#[derive(Clone, Debug)]
-struct OddPositive(NbiInteger, RugInteger);
-impl<'a> Arg<'a> for OddPositive {
-    type NbiArg = &'a NbiInteger;
-    type RugArg = &'a RugInteger;
-    fn to_nbi(&'a mut self) -> Self::NbiArg {
-        &self.0
-    }
-    fn to_rug(&'a mut self) -> Self::RugArg {
-        &self.1
-    }
-}
-impl quickcheck::Arbitrary for OddPositive {
-    fn arbitrary(g: &mut quickcheck::Gen) -> Self {
-        let nbi = NbiInteger::arbitrary(g);
-
-        // make odd positive
-        let (_, nbi) = nbi.to_num_bigint().into_parts();
-        let nbi = num_bigint::BigInt::from_biguint(num_bigint::Sign::Plus, nbi);
-        let mut nbi = NbiInteger::from_num_bigint(nbi);
-        if nbi < NbiInteger::from(2) {
-            nbi |= 2;
-        }
-        nbi |= 1;
-
-        let rug = RugInteger::from_bytes_msf(&nbi.to_bytes_msf());
-        OddPositive(nbi, rug)
     }
 }
 
@@ -453,5 +504,18 @@ impl<'a> Arg<'a> for Prng {
     }
     fn to_rug(&'a mut self) -> Self::RugArg {
         &mut self.rng
+    }
+}
+
+#[derive(Debug, Clone)]
+struct AsciiString(String);
+impl quickcheck::Arbitrary for AsciiString {
+    fn arbitrary(g: &mut quickcheck::Gen) -> Self {
+        let size = u8::arbitrary(g) % 32;
+        let s = std::iter::repeat_with(|| u8::arbitrary(g) & 0x7F)
+            .take(usize::from(size))
+            .map(char::from)
+            .collect();
+        Self(s)
     }
 }

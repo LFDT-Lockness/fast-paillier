@@ -217,3 +217,95 @@ fn random_key_for_tests(rng: &mut impl rand_core::RngCore) -> DecryptionKey {
     let q = Integer::generate_safe_prime(rng, 512);
     DecryptionKey::from_primes(p, q).unwrap()
 }
+
+#[test]
+fn bigint_from_radix_prohibits_whitespaces() {
+    assert_eq!(Integer::from_str_radix("123 4", 10), None)
+}
+
+#[test]
+fn sample_in_multgroup_of_negative_panics() {
+    let mut rng = rand_dev::DevRng::new();
+    let mut x = 0u8;
+    rand_core::RngCore::fill_bytes(&mut rng, core::slice::from_mut(&mut x));
+
+    for x in (0..20).chain([x]) {
+        let mut rng_ = rng.fork();
+        let x_ = -Integer::from(x);
+        let result =
+            std::panic::catch_unwind(move || Integer::sample_in_mult_group_of(&mut rng_, &x_));
+
+        assert!(
+            result.is_err(),
+            "sampling from negative group must have panicked"
+        );
+
+        let mut rng = rng.fork();
+        let x = -Integer::from(x);
+        let result =
+            std::panic::catch_unwind(move || Integer::sample_pm_in_mult_group_of(&mut rng, &x));
+        assert!(
+            result.is_err(),
+            "sampling from negative group must have panicked"
+        );
+    }
+}
+
+#[test]
+fn gen_safe_primes_panics_on_small_bitsize() {
+    let mut rng = rand_dev::DevRng::new();
+    for bitsize in 0..100 {
+        let mut rng = rng.fork();
+        let result = std::panic::catch_unwind(move || {
+            fast_paillier::backend::sieve_generate_safe_primes(&mut rng, bitsize, 1000)
+        });
+        assert!(result.is_err());
+    }
+}
+
+#[test]
+fn gen_safe_primes_100bits() {
+    let mut rng = rand_dev::DevRng::new();
+    let _ = fast_paillier::backend::sieve_generate_safe_primes(&mut rng, 100, 1000);
+}
+
+#[test]
+fn gen_prime_panics_on_small_bitsize() {
+    let mut rng = rand_dev::DevRng::new();
+    for bitsize in 0..2 {
+        let mut rng = rng.fork();
+        let result = std::panic::catch_unwind(move || Integer::generate_prime(&mut rng, bitsize));
+        assert!(result.is_err());
+    }
+}
+#[test]
+fn gen_prime_2bits() {
+    let mut rng = rand_dev::DevRng::new();
+    Integer::generate_prime(&mut rng, 2);
+}
+
+#[test]
+fn sample_in_mult_group_0_or_1_panics() {
+    let mut rng = rand_dev::DevRng::new();
+    for n in 0..=1 {
+        let mut rng_ = rng.fork();
+        let result = std::panic::catch_unwind(move || {
+            Integer::sample_in_mult_group_of(&mut rng_, &Integer::from(n))
+        });
+        assert!(result.is_err());
+
+        let mut rng_ = rng.fork();
+        let result = std::panic::catch_unwind(move || {
+            Integer::sample_pm_in_mult_group_of(&mut rng_, &Integer::from(n))
+        });
+        assert!(result.is_err())
+    }
+}
+
+#[test]
+fn sample_in_mult_group_2_works() {
+    let mut rng = rand_dev::DevRng::new();
+
+    let x = Integer::sample_in_mult_group_of(&mut rng, &Integer::from(2));
+    assert_eq!(x, Integer::one());
+}
