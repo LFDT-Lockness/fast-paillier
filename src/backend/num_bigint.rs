@@ -370,7 +370,10 @@ impl Integer {
     }
 
     /// Generates a random prime
+    ///
+    /// **Panics** if `bit_size < 2` as there are no valid primes of this bit size.
     pub fn generate_prime(rng: &mut impl rand_core::RngCore, bit_size: u32) -> Self {
+        assert!(bit_size >= 2, "there are no primes of bit size less than 2");
         let mut x = Integer::zero();
         loop {
             x.assign_random_bits(bit_size, rng);

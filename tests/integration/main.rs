@@ -268,3 +268,18 @@ fn gen_safe_primes_100bits() {
     let mut rng = rand_dev::DevRng::new();
     let _ = fast_paillier::backend::sieve_generate_safe_primes(&mut rng, 100, 1000);
 }
+
+#[test]
+fn gen_prime_panics_on_small_bitsize() {
+    let mut rng = rand_dev::DevRng::new();
+    for bitsize in 0..2 {
+        let mut rng = rng.fork();
+        let result = std::panic::catch_unwind(move || Integer::generate_prime(&mut rng, bitsize));
+        assert!(result.is_err());
+    }
+}
+#[test]
+fn gen_prime_2bits() {
+    let mut rng = rand_dev::DevRng::new();
+    Integer::generate_prime(&mut rng, 2);
+}
