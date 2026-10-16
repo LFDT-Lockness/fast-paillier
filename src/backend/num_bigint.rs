@@ -298,8 +298,8 @@ impl Integer {
         self
     }
 
-    // TODO neither reps nor rng are used here, maybe we should get rid of them
-    pub fn is_probably_prime(&self, _reps: u32, _rng: &mut impl rand_core::RngCore) -> IsPrime {
+    /// Performs primality test without sieve optimization
+    pub(super) fn is_probably_prime_without_sieve(&self) -> IsPrime {
         fn boxed_uint(n: &num_bigint::BigUint) -> crypto_bigint::BoxedUint {
             crypto_bigint::cpubits! {
                 16 | 32 => { crypto_bigint::BoxedUint::from_words(n.iter_u32_digits()) }
@@ -319,6 +319,22 @@ impl Integer {
         }
     }
 
+    /// Performs primality tests agains provided integer
+    // TODO neither reps nor rng are used here, maybe we should get rid of them
+    pub fn is_probably_prime(&self, _reps: u32, _rng: &mut impl rand_core::RngCore) -> IsPrime {
+        for &small_prime in &crate::utils::small_primes::SMALL_PRIMES {
+            if self.mod_u(small_prime) == 0 {
+                return if *self == Integer::from(small_prime) {
+                    IsPrime::Yes
+                } else {
+                    IsPrime::No
+                };
+            }
+        }
+        self.is_probably_prime_without_sieve()
+    }
+
+    /// Generates a random prime
     pub fn generate_prime(rng: &mut impl rand_core::RngCore, bit_size: u32) -> Self {
         let mut x = Integer::zero();
         loop {
