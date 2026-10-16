@@ -217,3 +217,8 @@ fn random_key_for_tests(rng: &mut impl rand_core::RngCore) -> DecryptionKey {
     let q = Integer::generate_safe_prime(rng, 512);
     DecryptionKey::from_primes(p, q).unwrap()
 }
+
+#[test]
+fn bigint_from_radix_prohibits_whitespaces() {
+    assert_eq!(Integer::from_str_radix("123 4", 10), None)
+}

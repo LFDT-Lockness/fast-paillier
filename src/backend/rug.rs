@@ -76,6 +76,18 @@ impl Integer {
     }
     /// Parses the integer using the given radix
     pub fn from_str_radix(s: &str, radix: u16) -> Option<Self> {
+        // rug accepts strings that have whitespaces in them, integer is parsed while
+        // ignoring whitespaces, even in the middle of the number. This behavior is
+        // different from num-bigint backend, and it is strange. We manually restrict
+        // strings to be ascii alphanum
+        if !s
+            .chars()
+            .enumerate()
+            .skip_while(|&(i, c)| i == 0 && (c == '+' || c == '-'))
+            .all(|(_, c)| c.is_ascii_alphanumeric())
+        {
+            return None;
+        }
         rug::Integer::from_str_radix(s, radix.into())
             .ok()
             .map(Integer)

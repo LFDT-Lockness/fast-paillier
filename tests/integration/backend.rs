@@ -180,6 +180,17 @@ quickcheck::quickcheck! {
         // It matters to check if one returns `Yes|Probably`, and the other returns `No`
         matches!((r1, r2), (IsPrime::Yes | IsPrime::Probably, IsPrime::Yes | IsPrime::Probably) | (IsPrime::No, IsPrime::No))
     }
+
+    fn from_radix(s: AsciiString) -> bool {
+        let nbi = NbiInteger::from_str_radix(&s.0, 16);
+        let rug = RugInteger::from_str_radix(&s.0, 16);
+        eprintln!("{nbi:?}, {rug:?}");
+        match (nbi, rug) {
+            (Some(a), Some(b)) => a.equals(b),
+            (None, None) => true,
+            _ => false
+        }
+    }
 }
 
 ///// Helper traits for macro /////
@@ -453,5 +464,18 @@ impl<'a> Arg<'a> for Prng {
     }
     fn to_rug(&'a mut self) -> Self::RugArg {
         &mut self.rng
+    }
+}
+
+#[derive(Debug, Clone)]
+struct AsciiString(String);
+impl quickcheck::Arbitrary for AsciiString {
+    fn arbitrary(g: &mut quickcheck::Gen) -> Self {
+        let size = u8::arbitrary(g) % 32;
+        let s = std::iter::repeat_with(|| u8::arbitrary(g) & 0x7F)
+            .take(usize::from(size))
+            .map(char::from)
+            .collect();
+        Self(s)
     }
 }

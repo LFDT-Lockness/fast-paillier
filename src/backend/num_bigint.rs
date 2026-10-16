@@ -75,6 +75,17 @@ impl Integer {
     }
     /// Parses the integer using the given radix
     pub fn from_str_radix(s: &str, radix: u16) -> Option<Self> {
+        // num-bigint already enforces these checks, but we double-enforce them
+        // to make sure they are in sync with what we already enforce for rug.
+        // See RugInteger::from_str_radix
+        if !s
+            .chars()
+            .enumerate()
+            .skip_while(|&(i, c)| i == 0 && (c == '+' || c == '-'))
+            .all(|(_, c)| c.is_ascii_alphanumeric())
+        {
+            return None;
+        }
         num_traits::Num::from_str_radix(s, radix.into())
             .ok()
             .map(Integer)
