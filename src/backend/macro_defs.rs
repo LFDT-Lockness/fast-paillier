@@ -165,10 +165,8 @@ macro_rules! make_all_ops {
         $crate::backend::macro_defs::make_assign!(Integer, RemAssign, rem_assign);
 
         $crate::backend::macro_defs::make_ops_for_primitive!(Integer, Shl, shl, u32 $(, $complete)?);
-        $crate::backend::macro_defs::make_ops_for_primitive!(Integer, Shl, shl, i32 $(, $complete)?);
         $crate::backend::macro_defs::make_ops_for_primitive!(Integer, Shl, shl, usize $(, $complete)?);
         $crate::backend::macro_defs::make_ops_for_primitive!(Integer, Shr, shr, u32 $(, $complete)?);
-        $crate::backend::macro_defs::make_ops_for_primitive!(Integer, Shr, shr, i32 $(, $complete)?);
         $crate::backend::macro_defs::make_ops_for_primitive!(Integer, Shr, shr, usize $(, $complete)?);
 
         impl core::ops::Neg for $type {
