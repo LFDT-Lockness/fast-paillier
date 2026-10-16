@@ -145,7 +145,7 @@ make_quickcheck!(Self::random_bits(bits: SmallU32, rng: Prng));
 make_quickcheck!(Self::random_bits_signed(bits: SmallU32, rng: Prng));
 make_quickcheck!(assign_random_below(self: NbiInteger, modulo: RefInteger, rng: Prng));
 make_quickcheck!(assign_random_bits(self: NbiInteger, bits: SmallU32, rng: Prng));
-make_quickcheck!(jacobi(self: NbiInteger, n: OddPositive));
+make_quickcheck!(jacobi(self: NbiInteger, n: RefInteger));
 make_quickcheck!(
     combine(
         self: NbiInteger,
@@ -320,38 +320,6 @@ impl From<u8> for RefInteger {
             NbiInteger::from(u32::from(value)),
             RugInteger::from(u32::from(value)),
         )
-    }
-}
-
-/// Helper quickcheck newtype. Similar to [`RefInteger`], but generates integers
-/// that are odd and larger than 2 (to be used as an argument to `jacobi`)
-#[derive(Clone, Debug)]
-struct OddPositive(NbiInteger, RugInteger);
-impl<'a> Arg<'a> for OddPositive {
-    type NbiArg = &'a NbiInteger;
-    type RugArg = &'a RugInteger;
-    fn to_nbi(&'a mut self) -> Self::NbiArg {
-        &self.0
-    }
-    fn to_rug(&'a mut self) -> Self::RugArg {
-        &self.1
-    }
-}
-impl quickcheck::Arbitrary for OddPositive {
-    fn arbitrary(g: &mut quickcheck::Gen) -> Self {
-        let nbi = NbiInteger::arbitrary(g);
-
-        // make odd positive
-        let (_, nbi) = nbi.to_num_bigint().into_parts();
-        let nbi = num_bigint::BigInt::from_biguint(num_bigint::Sign::Plus, nbi);
-        let mut nbi = NbiInteger::from_num_bigint(nbi);
-        if nbi < NbiInteger::from(2) {
-            nbi |= 2;
-        }
-        nbi |= 1;
-
-        let rug = RugInteger::from_bytes_msf(&nbi.to_bytes_msf());
-        OddPositive(nbi, rug)
     }
 }
 

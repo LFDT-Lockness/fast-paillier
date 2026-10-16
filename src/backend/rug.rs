@@ -335,7 +335,14 @@ impl Integer {
         }
     }
 
+    /// Compute jacobi symbol of a over n
+    ///
+    /// Requires odd `n >= 3`. **Panics** if `n` is not in required domain.
     pub fn jacobi(&self, n: &Self) -> i32 {
+        #[allow(clippy::panic)]
+        if n.0.is_even() || n.0 <= 2 {
+            panic!("n should be an odd number larger than 2");
+        }
         self.0.jacobi(&n.0)
     }
 

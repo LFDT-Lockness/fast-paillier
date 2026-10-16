@@ -387,8 +387,7 @@ impl Integer {
 
     /// Compute jacobi symbol of a over n
     ///
-    /// Requires odd `n >= 3`. If it doesn't hold, function
-    /// panics if debug asserts are enabled, or returns 0 otherwise.
+    /// Requires odd `n >= 3`. **Panics** if `n` is not in required domain.
     ///
     /// Implementation is taken from [Handbook of Applied cryptography][book],
     /// p. 73, Algorithm 2.149
@@ -396,9 +395,9 @@ impl Integer {
     /// [book]: https://cacr.uwaterloo.ca/hac/about/chap2.pdf
     #[inline(always)]
     pub fn jacobi(&self, n: &Self) -> i32 {
+        #[allow(clippy::panic)]
         if n.0.is_even() || n.0 <= num_bigint::BigInt::from(2) {
-            debug_assert!(false, "n should be an odd number larger than 2");
-            return 0;
+            panic!("n should be an odd number larger than 2");
         }
         let a = self.modulo_ref(n);
         jacobi_inner(1, &a.0, &n.0)
