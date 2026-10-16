@@ -73,7 +73,10 @@ impl Integer {
     }
 
     /// Samples `x` in Z*_n
+    ///
+    /// **Panics** if `n <= 1`.
     pub fn sample_in_mult_group_of(rng: &mut impl rand_core::RngCore, n: &Self) -> Self {
+        assert!(*n > Integer::one(), "`n` must be greater than 1 (n={n})");
         let mut x = Integer::zero();
         loop {
             x.assign_random_below(n, rng);
@@ -84,7 +87,10 @@ impl Integer {
     }
 
     /// Samples `x` such that abs(x) is in `Z*_n`
+    ///
+    /// **Panics** if `n <= 1`.
     pub fn sample_pm_in_mult_group_of(rng: &mut impl rand_core::RngCore, n: &Self) -> Self {
+        assert!(*n > Integer::one(), "`n` must be greater than 1 (n={n})");
         let mut x = Integer::zero();
         let mut sign_buf = [0u8; 1];
         loop {
