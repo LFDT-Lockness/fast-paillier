@@ -218,11 +218,27 @@ impl Integer {
         self
     }
 
+    /// Generates random integer from range 0..self (exlusive)
+    ///
+    /// **Panics** if `self` is not positive number
     pub fn random_below(self, rng: &mut impl rand_core::RngCore) -> Self {
+        assert_eq!(
+            self.cmp0(),
+            core::cmp::Ordering::Greater,
+            "random_below: upper bound must be positive"
+        );
         let mut rng = external_rand(rng);
         Integer(self.0.random_below(&mut rng))
     }
+    /// Generates random integer from range 0..self (exlusive)
+    ///
+    /// **Panics** if `self` is not positive number
     pub fn random_below_ref(&self, rng: &mut impl rand_core::RngCore) -> Self {
+        assert_eq!(
+            self.cmp0(),
+            core::cmp::Ordering::Greater,
+            "random_below: upper bound must be positive"
+        );
         let mut rng = external_rand(rng);
         Integer(self.0.random_below_ref(&mut rng).complete())
     }
@@ -241,11 +257,19 @@ impl Integer {
         }
     }
 
+    /// Generates random integer from range 0..modulo (exlusive) and assigns to `self`
+    ///
+    /// **Panics** if modulo is not positive
     pub fn assign_random_below(
         &mut self,
         modulo: &Self,
         rng: &mut impl rand_core::RngCore,
     ) -> &mut Self {
+        assert_eq!(
+            modulo.cmp0(),
+            core::cmp::Ordering::Greater,
+            "random_below: upper bound must be positive"
+        );
         let mut rng = external_rand(rng);
         let r = modulo.0.random_below_ref(&mut rng);
         rug::Assign::assign(&mut self.0, r);

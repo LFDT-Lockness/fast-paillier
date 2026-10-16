@@ -222,3 +222,31 @@ fn random_key_for_tests(rng: &mut impl rand_core::RngCore) -> DecryptionKey {
 fn bigint_from_radix_prohibits_whitespaces() {
     assert_eq!(Integer::from_str_radix("123 4", 10), None)
 }
+
+#[test]
+fn sample_in_multgroup_of_negative_panics() {
+    let mut rng = rand_dev::DevRng::new();
+    let mut x = 0u8;
+    rand_core::RngCore::fill_bytes(&mut rng, core::slice::from_mut(&mut x));
+
+    for x in (0..20).chain([x]) {
+        let mut rng_ = rng.fork();
+        let x_ = -Integer::from(x);
+        let result =
+            std::panic::catch_unwind(move || Integer::sample_in_mult_group_of(&mut rng_, &x_));
+
+        assert!(
+            result.is_err(),
+            "sampling from negative group must have panicked"
+        );
+
+        let mut rng = rng.fork();
+        let x = -Integer::from(x);
+        let result =
+            std::panic::catch_unwind(move || Integer::sample_pm_in_mult_group_of(&mut rng, &x));
+        assert!(
+            result.is_err(),
+            "sampling from negative group must have panicked"
+        );
+    }
+}

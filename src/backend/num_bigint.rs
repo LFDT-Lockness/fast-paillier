@@ -255,7 +255,15 @@ impl Integer {
         self
     }
 
+    /// Generates random integer from range 0..self (exlusive)
+    ///
+    /// **Panics** if `self` is not positive number
     pub fn random_below(self, rng: &mut impl rand_core::RngCore) -> Self {
+        assert_eq!(
+            self.cmp0(),
+            core::cmp::Ordering::Greater,
+            "random_below: upper bound must be positive"
+        );
         // when the number is a power of two, the randomness generation between
         // rug and nbi differs, and rug uses exactly the same as random_bits
         let bits = self.0.bits() - 1;
@@ -266,7 +274,15 @@ impl Integer {
             Integer(rand::Rng::gen_range(rng, range))
         }
     }
+    /// Generates random integer from range 0..self (exlusive)
+    ///
+    /// **Panics** if `self` is not positive number
     pub fn random_below_ref(&self, rng: &mut impl rand_core::RngCore) -> Self {
+        assert_eq!(
+            self.cmp0(),
+            core::cmp::Ordering::Greater,
+            "random_below: upper bound must be positive"
+        );
         // see the note in random_below
         let bits = self.0.bits() - 1;
         if self.0.trailing_zeros() == Some(bits) {

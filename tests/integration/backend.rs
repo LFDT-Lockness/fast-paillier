@@ -30,11 +30,16 @@ macro_rules! make_quickcheck {
                         let mut $arg = $arg.clone();
                         eprintln!("arg: {:?}", $arg);
                     )*
-                    nbi.$method(
-                        $(
-                            Arg::to_nbi( &mut $arg ),
-                        )*
+                    std::panic::catch_unwind(move ||
+                        nbi.$method(
+                            $(
+                                Arg::to_nbi( &mut $arg ),
+                            )*
+                        )
+                        .clone()
                     )
+                    .inspect_err(|_e| eprintln!("nbi panicked"))
+                    .ok()
                 };
                 let r2 = {
                     // Change args mutability
@@ -42,14 +47,26 @@ macro_rules! make_quickcheck {
                         let mut $arg = $arg;
                     )*
 
-                    rug.$method(
-                        $(
-                            Arg::to_rug( &mut $arg ),
-                        )*
+                    std::panic::catch_unwind(move ||
+                        rug.$method(
+                            $(
+                                Arg::to_rug( &mut $arg ),
+                            )*
+                        )
+                        .clone()
                     )
+                    .inspect_err(|_e| eprintln!("rug panicked"))
+                    .ok()
                 };
 
-                r1.equals(r2)
+                match (r1, r2) {
+                    (Some(r1), Some(r2)) => r1.equals(r2),
+                    (None, None) => true,
+                    _ => {
+                        eprintln!("one backend panicked while the other didn't");
+                        false
+                    },
+                }
             }
         }
     };
@@ -122,16 +139,16 @@ make_quickcheck!(significant_dwords(self: NbiInteger));
 make_quickcheck!(invert(self: NbiInteger, modulo: RefInteger));
 make_quickcheck!(invert_ref(self: NbiInteger, modulo: RefInteger));
 make_quickcheck!(set_bit(self: NbiInteger, index: SmallU32, value: bool));
-make_quickcheck!(random_below(self: Positive<NbiInteger>, rng: Prng));
-make_quickcheck!(random_below_ref(self: Positive<NbiInteger>, rng: Prng));
+make_quickcheck!(random_below(self: NbiInteger, rng: Prng));
+make_quickcheck!(random_below_ref(self: NbiInteger, rng: Prng));
 make_quickcheck!(Self::random_bits(bits: SmallU32, rng: Prng));
 make_quickcheck!(Self::random_bits_signed(bits: SmallU32, rng: Prng));
-make_quickcheck!(assign_random_below(self: NbiInteger, modulo: Positive<RefInteger>, rng: Prng));
+make_quickcheck!(assign_random_below(self: NbiInteger, modulo: RefInteger, rng: Prng));
 make_quickcheck!(assign_random_bits(self: NbiInteger, bits: SmallU32, rng: Prng));
 make_quickcheck!(jacobi(self: NbiInteger, n: OddPositive));
 make_quickcheck!(
     combine(
-        self: NonZero<NbiInteger>,
+        self: NbiInteger,
         l: RefInteger,
         le: RefInteger,
         r: RefInteger,
