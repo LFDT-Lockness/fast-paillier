@@ -230,6 +230,10 @@ impl Integer {
         self.invert_ref(modulo)
     }
     pub fn invert_ref(&self, modulo: &Self) -> Option<Self> {
+        // When modulo=0, num-bigint panics; we return `None` instead
+        if modulo.cmp0().is_eq() {
+            return None;
+        }
         // Nbi returns wrong result if modulo = 1, and self is negative. Correct response is `0`,
         // but nbi gives `1`.
         if self.cmp0().is_lt() && modulo.is_one() {
