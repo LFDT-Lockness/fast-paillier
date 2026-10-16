@@ -451,7 +451,7 @@ impl quickcheck::Arbitrary for Integer {
             if prev.cmp0().is_eq() {
                 None
             } else {
-                prev >>= 1;
+                prev /= 2;
                 Some(prev.clone())
             }
         }))
