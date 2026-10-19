@@ -106,11 +106,7 @@ impl DecryptionKey {
             return Err(Reason::Encrypt.into());
         }
 
-        let x = if x.cmp0().is_ge() {
-            x
-        } else {
-            &(x + self.n())
-        };
+        let x = if x.cmp0().is_ge() { x } else { &(x + self.n()) };
 
         // a = (1 + N)^x mod N^2 = (1 + xN) mod N^2
         let a = (Integer::one() + x * self.ek.n()) % self.ek.nn();
