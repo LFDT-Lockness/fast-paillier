@@ -107,9 +107,9 @@ impl DecryptionKey {
         }
 
         let x = if x.cmp0().is_ge() {
-            x.clone()
+            x
         } else {
-            x + self.n()
+            &(x + self.n())
         };
 
         // a = (1 + N)^x mod N^2 = (1 + xN) mod N^2

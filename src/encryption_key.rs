@@ -16,9 +16,9 @@ pub struct EncryptionKey {
 impl EncryptionKey {
     /// Constructs an encryption key from `N`
     pub fn from_n(n: Integer) -> Self {
-        let nn = n.clone() * &n;
-        let half_n = n.clone() >> 1u32;
-        let neg_half_n = -half_n.clone();
+        let nn = &n * &n;
+        let half_n = &n >> 1u32;
+        let neg_half_n = -&half_n;
         Self {
             n,
             nn,
@@ -64,13 +64,13 @@ impl EncryptionKey {
         }
 
         let x = if x.cmp0().is_ge() {
-            x.clone()
+            x
         } else {
-            x + self.n()
+            &(x + self.n())
         };
 
         // a = (1 + N)^x mod N^2 = (1 + xN) mod N^2
-        let a = (Integer::one() + &x * self.n()) % self.nn();
+        let a = (Integer::one() + x * self.n()) % self.nn();
         // b = nonce^N mod N^2
         let b = nonce
             .pow_mod_ref(self.n(), self.nn())
