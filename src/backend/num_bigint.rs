@@ -391,21 +391,20 @@ impl Integer {
 
     /// Compute jacobi symbol of a over n
     ///
-    /// Requires odd `n >= 3`. If it doesn't hold, function
-    /// panics if debug asserts are enabled, or returns 0 otherwise.
+    /// Requires odd `n >= 3`. Returns an error if `n` is not in required domain.
     ///
     /// Implementation is taken from [Handbook of Applied cryptography][book],
     /// p. 73, Algorithm 2.149
     ///
     /// [book]: https://cacr.uwaterloo.ca/hac/about/chap2.pdf
     #[inline(always)]
-    pub fn jacobi(&self, n: &Self) -> i32 {
+    pub fn jacobi(&self, n: &Self) -> Result<i32, InvalidInput> {
         if n.0.is_even() || n.0 <= num_bigint::BigInt::from(2) {
-            debug_assert!(false, "n should be an odd number larger than 2");
-            return 0;
+            Err(InvalidInputReason::Jacobi.into())
+        } else {
+            let a = self.modulo_ref(n);
+            Ok(jacobi_inner(1, &a.0, &n.0))
         }
-        let a = self.modulo_ref(n);
-        jacobi_inner(1, &a.0, &n.0)
     }
 
     /// Compute l^le * r^re modulo self
@@ -542,9 +541,9 @@ mod test {
             let root = blum_sqrt(&x, &p, &q, &n);
             let x_ = root.square().modulo(&n);
 
-            let jp = x.modulo_ref(&p).jacobi(&p);
-            let jq = x.modulo_ref(&q).jacobi(&q);
-            let j = x.jacobi(&n);
+            let jp = x.modulo_ref(&p).jacobi(&p).unwrap();
+            let jq = x.modulo_ref(&q).jacobi(&q).unwrap();
+            let j = x.jacobi(&n).unwrap();
             assert_eq!(jp * jq, j);
 
             if jp == 1 && jq == 1 {

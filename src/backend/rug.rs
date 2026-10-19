@@ -334,8 +334,15 @@ impl Integer {
         }
     }
 
-    pub fn jacobi(&self, n: &Self) -> i32 {
-        self.0.jacobi(&n.0)
+    /// Compute jacobi symbol of a over n
+    ///
+    /// Requires odd `n >= 3`. Returns an error if `n` is not in required domain.
+    pub fn jacobi(&self, n: &Self) -> Result<i32, InvalidInput> {
+        if n.0.is_even() || n.0 <= 2 {
+            Err(InvalidInputReason::Jacobi.into())
+        } else {
+            Ok(self.0.jacobi(&n.0))
+        }
     }
 
     /// Compute l^le * r^re modulo self

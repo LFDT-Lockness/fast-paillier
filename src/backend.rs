@@ -335,6 +335,8 @@ pub struct InvalidInput(#[from] InvalidInputReason);
 enum InvalidInputReason {
     #[error("random_below: upper bound must be positive")]
     RandomBelowUpperBound,
+    #[error("jacobi: `n` must be an odd number larger than 2")]
+    Jacobi,
 }
 
 #[cfg(test)]
