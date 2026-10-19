@@ -28,8 +28,8 @@ impl DecryptionKey {
     ///
     /// Samples two safe 1536-bits primes that meets 128 bits security level
     pub fn generate(rng: &mut (impl RngCore + CryptoRng)) -> Result<Self, Error> {
-        let p = Integer::generate_safe_prime(rng, 1536);
-        let q = Integer::generate_safe_prime(rng, 1536);
+        let p = Integer::generate_safe_prime(rng, 1536).map_err(crate::Bug::GenerateSafePrime)?;
+        let q = Integer::generate_safe_prime(rng, 1536).map_err(crate::Bug::GenerateSafePrime)?;
         Self::from_primes(p, q)
     }
 

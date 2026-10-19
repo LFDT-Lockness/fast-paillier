@@ -143,8 +143,8 @@ fn encryption_with_known_factorization() {
 fn factorized_exp_mod_n() {
     let mut rng = rand_dev::DevRng::new();
 
-    let p = Integer::generate_safe_prime(&mut rng, 512);
-    let q = Integer::generate_safe_prime(&mut rng, 512);
+    let p = Integer::generate_safe_prime(&mut rng, 512).unwrap();
+    let q = Integer::generate_safe_prime(&mut rng, 512).unwrap();
     let n = &p * &q;
     println!("n: {n}");
 
@@ -172,8 +172,8 @@ fn factorized_exp_mod_n() {
 fn factorized_exp_mod_nn() {
     let mut rng = rand_dev::DevRng::new();
 
-    let p = Integer::generate_safe_prime(&mut rng, 512);
-    let q = Integer::generate_safe_prime(&mut rng, 512);
+    let p = Integer::generate_safe_prime(&mut rng, 512).unwrap();
+    let q = Integer::generate_safe_prime(&mut rng, 512).unwrap();
     let nn = (&p * &q).square();
     println!("nn: {nn}");
 
@@ -213,8 +213,8 @@ fn unsigned_mod_to_signed(x: Integer, n: &Integer) -> Integer {
 }
 
 fn random_key_for_tests(rng: &mut impl rand_core::RngCore) -> DecryptionKey {
-    let p = Integer::generate_safe_prime(rng, 512);
-    let q = Integer::generate_safe_prime(rng, 512);
+    let p = Integer::generate_safe_prime(rng, 512).unwrap();
+    let q = Integer::generate_safe_prime(rng, 512).unwrap();
     DecryptionKey::from_primes(p, q).unwrap()
 }
 
@@ -244,4 +244,19 @@ fn sample_in_multgroup_of_nonpositive_returns_err() {
             "sampling from nonpositive group must return an error"
         );
     }
+}
+
+#[test]
+fn gen_safe_primes_panics_on_small_bitsize() {
+    let mut rng = rand_dev::DevRng::new();
+    for bitsize in 0..100 {
+        let _ = fast_paillier::backend::sieve_generate_safe_primes(&mut rng, bitsize, 1000)
+            .unwrap_err();
+    }
+}
+
+#[test]
+fn gen_safe_primes_100bits() {
+    let mut rng = rand_dev::DevRng::new();
+    let _ = fast_paillier::backend::sieve_generate_safe_primes(&mut rng, 100, 1000);
 }

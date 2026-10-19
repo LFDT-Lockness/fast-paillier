@@ -76,6 +76,8 @@ enum Bug {
     PowModUndef,
     #[error("sample_in_mult_group_of: {0}")]
     SampleInMultGroup(backend::InvalidInput),
+    #[error("generate_safe_prime: {0}")]
+    GenerateSafePrime(backend::InvalidInput),
 }
 
 impl From<Bug> for Error {
