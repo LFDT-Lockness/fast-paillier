@@ -73,28 +73,34 @@ impl Integer {
     }
 
     /// Samples `x` in Z*_n
-    pub fn sample_in_mult_group_of(rng: &mut impl rand_core::RngCore, n: &Self) -> Self {
+    pub fn sample_in_mult_group_of(
+        rng: &mut impl rand_core::RngCore,
+        n: &Self,
+    ) -> Result<Self, InvalidInput> {
         let mut x = Integer::zero();
         loop {
-            x.assign_random_below(n, rng);
+            x.assign_random_below(n, rng)?;
             if x.in_mult_group_of(n) {
-                return x;
+                return Ok(x);
             }
         }
     }
 
     /// Samples `x` such that abs(x) is in `Z*_n`
-    pub fn sample_pm_in_mult_group_of(rng: &mut impl rand_core::RngCore, n: &Self) -> Self {
+    pub fn sample_pm_in_mult_group_of(
+        rng: &mut impl rand_core::RngCore,
+        n: &Self,
+    ) -> Result<Self, InvalidInput> {
         let mut x = Integer::zero();
         let mut sign_buf = [0u8; 1];
         loop {
-            x.assign_random_below(n, rng);
+            x.assign_random_below(n, rng)?;
             rng.fill_bytes(&mut sign_buf);
             if sign_buf[0] & 1 == 1 {
                 x = -x;
             }
             if x.abs_in_mult_group_of(n) {
-                return x;
+                return Ok(x);
             }
         }
     }
@@ -318,6 +324,17 @@ mod serialize {
             }
         }
     }
+}
+
+/// Error returned by methods on integer when provided inputs are not acceptable
+#[derive(Debug, thiserror::Error)]
+#[error("invalid input: {0}")]
+pub struct InvalidInput(#[from] InvalidInputReason);
+
+#[derive(Debug, thiserror::Error)]
+enum InvalidInputReason {
+    #[error("random_below: upper bound must be positive")]
+    RandomBelowUpperBound,
 }
 
 #[cfg(test)]

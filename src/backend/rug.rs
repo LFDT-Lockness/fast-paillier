@@ -2,8 +2,10 @@
 
 use alloc::{string::String, vec::Vec};
 
-use super::IsPrime;
 use rug::Complete;
+
+use super::IsPrime;
+use crate::backend::{InvalidInput, InvalidInputReason};
 
 /// Big integer type used in this crate
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug)]
@@ -218,13 +220,28 @@ impl Integer {
         self
     }
 
-    pub fn random_below(self, rng: &mut impl rand_core::RngCore) -> Self {
+    /// Generates random integer from range 0..self (exlusive)
+    ///
+    /// Returns an error if `self` is not positive number
+    pub fn random_below(self, rng: &mut impl rand_core::RngCore) -> Result<Self, InvalidInput> {
+        if self.cmp0() != core::cmp::Ordering::Greater {
+            return Err(InvalidInputReason::RandomBelowUpperBound.into());
+        }
         let mut rng = external_rand(rng);
-        Integer(self.0.random_below(&mut rng))
+        Ok(Integer(self.0.random_below(&mut rng)))
     }
-    pub fn random_below_ref(&self, rng: &mut impl rand_core::RngCore) -> Self {
+    /// Generates random integer from range 0..self (exlusive)
+    ///
+    /// Returns an error if `self` is not positive number
+    pub fn random_below_ref(
+        &self,
+        rng: &mut impl rand_core::RngCore,
+    ) -> Result<Self, InvalidInput> {
+        if self.cmp0() != core::cmp::Ordering::Greater {
+            return Err(InvalidInputReason::RandomBelowUpperBound.into());
+        }
         let mut rng = external_rand(rng);
-        Integer(self.0.random_below_ref(&mut rng).complete())
+        Ok(Integer(self.0.random_below_ref(&mut rng).complete()))
     }
     pub fn random_bits(bits: u32, rng: &mut impl rand_core::RngCore) -> Self {
         let mut rng = external_rand(rng);
@@ -241,15 +258,21 @@ impl Integer {
         }
     }
 
+    /// Generates random integer from range 0..modulo (exlusive) and assigns to `self`
+    ///
+    /// Returns an error if modulo is not positive. `self` is not modified in this case.
     pub fn assign_random_below(
         &mut self,
         modulo: &Self,
         rng: &mut impl rand_core::RngCore,
-    ) -> &mut Self {
+    ) -> Result<&mut Self, InvalidInput> {
+        if modulo.cmp0() != core::cmp::Ordering::Greater {
+            return Err(InvalidInputReason::RandomBelowUpperBound.into());
+        }
         let mut rng = external_rand(rng);
         let r = modulo.0.random_below_ref(&mut rng);
         rug::Assign::assign(&mut self.0, r);
-        self
+        Ok(self)
     }
 
     pub fn assign_random_bits(

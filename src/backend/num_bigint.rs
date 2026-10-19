@@ -2,9 +2,11 @@
 
 use alloc::{string::String, vec::Vec};
 
-use super::IsPrime;
 use num_integer::Integer as _;
 use num_traits::Signed as _;
+
+use super::IsPrime;
+use crate::backend::{InvalidInput, InvalidInputReason};
 
 /// Big integer type used in this crate
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug)]
@@ -255,26 +257,41 @@ impl Integer {
         self
     }
 
-    pub fn random_below(self, rng: &mut impl rand_core::RngCore) -> Self {
+    /// Generates random integer from range 0..self (exlusive)
+    ///
+    /// Returns an error if `self` is not positive number
+    pub fn random_below(self, rng: &mut impl rand_core::RngCore) -> Result<Self, InvalidInput> {
+        if self.cmp0() != core::cmp::Ordering::Greater {
+            return Err(InvalidInputReason::RandomBelowUpperBound.into());
+        }
         // when the number is a power of two, the randomness generation between
         // rug and nbi differs, and rug uses exactly the same as random_bits
         let bits = self.0.bits() - 1;
-        if self.0.trailing_zeros() == Some(bits) {
+        Ok(if self.0.trailing_zeros() == Some(bits) {
             Self::random_bits_u64(bits, rng)
         } else {
             let range = num_traits::ConstZero::ZERO..self.0;
             Integer(rand::Rng::gen_range(rng, range))
-        }
+        })
     }
-    pub fn random_below_ref(&self, rng: &mut impl rand_core::RngCore) -> Self {
+    /// Generates random integer from range 0..self (exlusive)
+    ///
+    /// Returns an error if `self` is not positive number
+    pub fn random_below_ref(
+        &self,
+        rng: &mut impl rand_core::RngCore,
+    ) -> Result<Self, InvalidInput> {
+        if self.cmp0() != core::cmp::Ordering::Greater {
+            return Err(InvalidInputReason::RandomBelowUpperBound.into());
+        }
         // see the note in random_below
         let bits = self.0.bits() - 1;
-        if self.0.trailing_zeros() == Some(bits) {
+        Ok(if self.0.trailing_zeros() == Some(bits) {
             Self::random_bits_u64(bits, rng)
         } else {
             let range = num_traits::ConstZero::ZERO..self.0.clone();
             Integer(rand::Rng::gen_range(rng, range))
-        }
+        })
     }
     pub fn random_bits(bits: u32, rng: &mut impl rand_core::RngCore) -> Self {
         Self::random_bits_u64(bits.into(), rng)
@@ -299,13 +316,16 @@ impl Integer {
         Integer(num_bigint::BigInt::from_biguint(sign, uint))
     }
 
+    /// Generates random integer from range 0..modulo (exlusive) and assigns to `self`
+    ///
+    /// Returns an error if modulo is not positive. `self` is not modified in this case.
     pub fn assign_random_below(
         &mut self,
         modulo: &Self,
         rng: &mut impl rand_core::RngCore,
-    ) -> &mut Self {
-        *self = modulo.random_below_ref(rng);
-        self
+    ) -> Result<&mut Self, InvalidInput> {
+        *self = modulo.random_below_ref(rng)?;
+        Ok(self)
     }
 
     pub fn assign_random_bits(
@@ -518,7 +538,7 @@ mod test {
         let n = &p * &q;
 
         for _ in 0..100 {
-            let x = n.random_below_ref(&mut rng);
+            let x = n.random_below_ref(&mut rng).unwrap();
             let root = blum_sqrt(&x, &p, &q, &n);
             let x_ = root.square().modulo(&n);
 

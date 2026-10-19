@@ -16,7 +16,7 @@ fn encrypt_decrypt() {
 
     for _ in 0..50 {
         // Generate plaintext in [-N/2; N/2)
-        let plaintext = ek.n().random_below_ref(&mut rng);
+        let plaintext = ek.n().random_below_ref(&mut rng).unwrap();
         let plaintext = plaintext - (ek.n() / 2u8);
         println!("Plaintext: {plaintext}");
 
@@ -79,8 +79,8 @@ fn homorphic_ops() {
     let ek = dk.encryption_key();
 
     for _ in 0..100 {
-        let a = ek.n().random_below_ref(&mut rng);
-        let b = ek.n().random_below_ref(&mut rng);
+        let a = ek.n().random_below_ref(&mut rng).unwrap();
+        let b = ek.n().random_below_ref(&mut rng).unwrap();
         let a = a - (ek.n() / 2u8);
         let b = b - (ek.n() / 2u8);
         println!("a: {a}");
@@ -127,10 +127,10 @@ fn encryption_with_known_factorization() {
 
     for i in 0..100 {
         println!("Iteration {i}");
-        let x = ek.n().random_below_ref(&mut rng);
+        let x = ek.n().random_below_ref(&mut rng).unwrap();
         let x = x - ek.half_n();
 
-        let nonce = Integer::sample_in_mult_group_of(&mut rng, ek.n());
+        let nonce = Integer::sample_in_mult_group_of(&mut rng, ek.n()).unwrap();
 
         let enc_x1 = ek.encrypt_with(&x, &nonce).unwrap();
         let enc_x2 = dk.encrypt_with(&x, &nonce).unwrap();
@@ -151,7 +151,7 @@ fn factorized_exp_mod_n() {
     let crt = utils::CrtExp::build_n(&p, &q).unwrap();
 
     for _ in 0..100 {
-        let x: Integer = n.random_below_ref(&mut rng);
+        let x: Integer = n.random_below_ref(&mut rng).unwrap();
         let mut e: Integer = Integer::random_bits(1024, &mut rng);
         if rng.gen::<bool>() {
             e = -e
@@ -180,7 +180,7 @@ fn factorized_exp_mod_nn() {
     let crt = utils::CrtExp::build_nn(&p, &q).unwrap();
 
     for _ in 0..100 {
-        let x = nn.random_below_ref(&mut rng);
+        let x = nn.random_below_ref(&mut rng).unwrap();
         let mut e = Integer::random_bits(1024, &mut rng);
         if rng.gen::<bool>() {
             e = -e
@@ -221,4 +221,27 @@ fn random_key_for_tests(rng: &mut impl rand_core::RngCore) -> DecryptionKey {
 #[test]
 fn bigint_from_radix_prohibits_whitespaces() {
     assert_eq!(Integer::from_str_radix("123 4", 10), None)
+}
+
+#[test]
+fn sample_in_multgroup_of_nonpositive_returns_err() {
+    let mut rng = rand_dev::DevRng::new();
+    let mut x = 0u8;
+    rand_core::RngCore::fill_bytes(&mut rng, core::slice::from_mut(&mut x));
+
+    for x in (0..20).chain([x]) {
+        let x = -Integer::from(x);
+        let result = Integer::sample_in_mult_group_of(&mut rng, &x);
+
+        assert!(
+            result.is_err(),
+            "sampling from nonpositive group must return an error"
+        );
+
+        let result = Integer::sample_pm_in_mult_group_of(&mut rng, &x);
+        assert!(
+            result.is_err(),
+            "sampling from nonpositive group must return an error"
+        );
+    }
 }

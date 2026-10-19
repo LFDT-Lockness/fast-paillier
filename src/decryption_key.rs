@@ -135,7 +135,8 @@ impl DecryptionKey {
         rng: &mut (impl RngCore + CryptoRng),
         x: &Plaintext,
     ) -> Result<(Ciphertext, Nonce), Error> {
-        let nonce = Integer::sample_in_mult_group_of(rng, self.ek.n());
+        let nonce = Integer::sample_in_mult_group_of(rng, self.ek.n())
+            .map_err(crate::Bug::SampleInMultGroup)?;
         let ciphertext = self.encrypt_with(x, &nonce)?;
         Ok((ciphertext, nonce))
     }

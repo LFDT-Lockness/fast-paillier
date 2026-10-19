@@ -12,6 +12,9 @@ macro_rules! make_quickcheck {
     // Case for normal methods. Called like `make_quickcheck!(method_name(self:
     // T1, arg: T2, arg2: T3))`
     ($method:ident ( self: $self_ty:ty $(, $arg:ident: $t:ty)* $(,)? ) ) => {
+        make_quickcheck!($method(self: $self_ty $(,$arg: $t)*), |a, b| a.equals(b));
+    };
+    ($method:ident ( self: $self_ty:ty $(, $arg:ident: $t:ty)* $(,)? ), |$r1:ident, $r2: ident| $compare:expr ) => {
         quickcheck::quickcheck! {
             fn $method(nbi: $self_ty $(, $arg: $t)*) -> bool {
                 #[allow(unused_mut)]
@@ -21,7 +24,7 @@ macro_rules! make_quickcheck {
                 let mut rug = RugInteger::from_bytes_msf_signed(&bytes, sign);
 
 
-                let r1 = {
+                let $r1 = {
                     // Since Arg::to_nbi takes mutable reference to the arg, we clone them,
                     // so the `rug` method below receives the same args as provided by
                     // quickcheck without any modification
@@ -36,7 +39,7 @@ macro_rules! make_quickcheck {
                         )*
                     )
                 };
-                let r2 = {
+                let $r2 = {
                     // Change args mutability
                     $(
                         let mut $arg = $arg;
@@ -49,7 +52,7 @@ macro_rules! make_quickcheck {
                     )
                 };
 
-                r1.equals(r2)
+                $compare
             }
         }
     };
@@ -96,6 +99,20 @@ macro_rules! make_quickcheck {
     };
 }
 
+/// Compare function to be used with methods that return `Result<..., E>` where `E`
+/// does not implement `Eq`
+fn compare_results<A, B, E>(r1: Result<A, E>, r2: Result<B, E>) -> bool
+where
+    A: HeteroEq<B>,
+    E: core::fmt::Debug,
+{
+    match (r1, r2) {
+        (Ok(a), Ok(b)) => a.equals(b),
+        (Err(a), Err(b)) => format!("{a:?}") == format!("{b:?}"),
+        _ => false,
+    }
+}
+
 make_quickcheck!(is_one(self: NbiInteger));
 make_quickcheck!(is_even(self: NbiInteger));
 make_quickcheck!(cmp_abs(self: NbiInteger, other: RefInteger));
@@ -122,16 +139,16 @@ make_quickcheck!(significant_dwords(self: NbiInteger));
 make_quickcheck!(invert(self: NbiInteger, modulo: RefInteger));
 make_quickcheck!(invert_ref(self: NbiInteger, modulo: RefInteger));
 make_quickcheck!(set_bit(self: NbiInteger, index: SmallU32, value: bool));
-make_quickcheck!(random_below(self: Positive<NbiInteger>, rng: Prng));
-make_quickcheck!(random_below_ref(self: Positive<NbiInteger>, rng: Prng));
+make_quickcheck!(random_below(self: NbiInteger, rng: Prng), |a, b| compare_results(a, b));
+make_quickcheck!(random_below_ref(self: NbiInteger, rng: Prng), |a, b| compare_results(a, b));
 make_quickcheck!(Self::random_bits(bits: SmallU32, rng: Prng));
 make_quickcheck!(Self::random_bits_signed(bits: SmallU32, rng: Prng));
-make_quickcheck!(assign_random_below(self: NbiInteger, modulo: Positive<RefInteger>, rng: Prng));
+make_quickcheck!(assign_random_below(self: NbiInteger, modulo: RefInteger, rng: Prng), |a, b| compare_results(a, b));
 make_quickcheck!(assign_random_bits(self: NbiInteger, bits: SmallU32, rng: Prng));
 make_quickcheck!(jacobi(self: NbiInteger, n: OddPositive));
 make_quickcheck!(
     combine(
-        self: NonZero<NbiInteger>,
+        self: NbiInteger,
         l: RefInteger,
         le: RefInteger,
         r: RefInteger,
@@ -150,8 +167,8 @@ fn round_random() {
     let rug = RugInteger::from(8);
 
     for _ in 0..32 {
-        let nbi_random = nbi.random_below_ref(&mut nbi_rng);
-        let rug_random = rug.random_below_ref(&mut rug_rng);
+        let nbi_random = nbi.random_below_ref(&mut nbi_rng).unwrap();
+        let rug_random = rug.random_below_ref(&mut rug_rng).unwrap();
         assert!(nbi_random.equals(rug_random));
     }
 }
