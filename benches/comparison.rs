@@ -148,7 +148,7 @@ fn omul(c: &mut criterion::Criterion) {
 pub fn naive_safe_prime(rng: &mut impl rand_core::RngCore, bits: u32) -> Integer {
     use fast_paillier::backend::IsPrime;
     loop {
-        let mut x = Integer::generate_prime(rng, bits - 1);
+        let mut x = Integer::generate_prime(rng, bits - 1).unwrap();
         x <<= 1;
         x += 1;
 

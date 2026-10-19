@@ -359,6 +359,8 @@ enum InvalidInputReason {
         1536-bits."
     )]
     SafePrimeBitSize,
+    #[error("generate_prime was called with `bit_size < 2`, there are no primes of this bit size")]
+    PrimeBitSize,
 }
 
 #[cfg(test)]

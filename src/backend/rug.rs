@@ -319,7 +319,15 @@ impl Integer {
     }
 
     /// Generates a random prime
-    pub fn generate_prime(rng: &mut impl rand_core::RngCore, bit_size: u32) -> Self {
+    ///
+    /// Returns an error if `bit_size < 2` as there are no primes of this bit size.
+    pub fn generate_prime(
+        rng: &mut impl rand_core::RngCore,
+        bit_size: u32,
+    ) -> Result<Self, InvalidInput> {
+        if bit_size < 2 {
+            return Err(InvalidInputReason::PrimeBitSize.into());
+        }
         let mut x = Integer::zero();
         loop {
             x.assign_random_bits(bit_size, rng);
@@ -329,7 +337,7 @@ impl Integer {
                 x.is_probably_prime(25, rng),
                 IsPrime::Probably | IsPrime::Yes
             ) {
-                break x;
+                break Ok(x);
             }
         }
     }

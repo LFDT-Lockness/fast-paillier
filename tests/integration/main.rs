@@ -260,3 +260,16 @@ fn gen_safe_primes_100bits() {
     let mut rng = rand_dev::DevRng::new();
     let _ = fast_paillier::backend::sieve_generate_safe_primes(&mut rng, 100, 1000);
 }
+
+#[test]
+fn gen_prime_returns_error_on_small_bitsize() {
+    let mut rng = rand_dev::DevRng::new();
+    for bitsize in 0..2 {
+        let _ = Integer::generate_prime(&mut rng, bitsize).unwrap_err();
+    }
+}
+#[test]
+fn gen_prime_2bits() {
+    let mut rng = rand_dev::DevRng::new();
+    Integer::generate_prime(&mut rng, 2).unwrap();
+}
