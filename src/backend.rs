@@ -73,10 +73,15 @@ impl Integer {
     }
 
     /// Samples `x` in Z*_n
+    ///
+    /// Returns an error if `n <= 1`.
     pub fn sample_in_mult_group_of(
         rng: &mut impl rand_core::RngCore,
         n: &Self,
     ) -> Result<Self, InvalidInput> {
+        if *n <= Integer::one() {
+            return Err(InvalidInputReason::SampleInMultGroupSize.into());
+        }
         let mut x = Integer::zero();
         loop {
             x.assign_random_below(n, rng)?;
@@ -87,10 +92,15 @@ impl Integer {
     }
 
     /// Samples `x` such that abs(x) is in `Z*_n`
+    ///
+    /// Returns an error if `n <= 1`.
     pub fn sample_pm_in_mult_group_of(
         rng: &mut impl rand_core::RngCore,
         n: &Self,
     ) -> Result<Self, InvalidInput> {
+        if *n <= Integer::one() {
+            return Err(InvalidInputReason::SampleInMultGroupSize.into());
+        }
         let mut x = Integer::zero();
         let mut sign_buf = [0u8; 1];
         loop {
@@ -361,6 +371,8 @@ enum InvalidInputReason {
     SafePrimeBitSize,
     #[error("generate_prime was called with `bit_size < 2`, there are no primes of this bit size")]
     PrimeBitSize,
+    #[error("sample_in_[pm_]mult_group: `n` must be at least 2")]
+    SampleInMultGroupSize,
 }
 
 #[cfg(test)]

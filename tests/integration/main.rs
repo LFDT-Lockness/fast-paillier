@@ -273,3 +273,20 @@ fn gen_prime_2bits() {
     let mut rng = rand_dev::DevRng::new();
     Integer::generate_prime(&mut rng, 2).unwrap();
 }
+
+#[test]
+fn sample_in_mult_group_0_or_1_return_error() {
+    let mut rng = rand_dev::DevRng::new();
+    for n in 0..=1 {
+        Integer::sample_in_mult_group_of(&mut rng, &Integer::from(n)).unwrap_err();
+        Integer::sample_pm_in_mult_group_of(&mut rng, &Integer::from(n)).unwrap_err();
+    }
+}
+
+#[test]
+fn sample_in_mult_group_2_works() {
+    let mut rng = rand_dev::DevRng::new();
+
+    let x = Integer::sample_in_mult_group_of(&mut rng, &Integer::from(2)).unwrap();
+    assert_eq!(x, Integer::one());
+}
