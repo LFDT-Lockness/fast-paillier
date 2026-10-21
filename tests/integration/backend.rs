@@ -160,6 +160,7 @@ make_quickcheck!(to_bytes_msf_signed(self: NbiInteger));
 make_quickcheck!(to_bytes_lsf(self: NbiInteger));
 make_quickcheck!(abs(self: NbiInteger));
 make_quickcheck!(sign(self: NbiInteger));
+make_quickcheck!(is_probably_prime(self: NbiInteger));
 
 #[test]
 fn round_random() {
@@ -180,19 +181,6 @@ quickcheck::quickcheck! {
         let r1 = serde_json::to_string(&x.0).unwrap();
         let r2 = serde_json::to_string(&x.1).unwrap();
         r1 == r2
-    }
-
-    fn is_probably_prime(x: RefInteger, rng: Prng) -> bool {
-        use fast_paillier::backend::IsPrime;
-
-        let mut rng = rng;
-
-        let r1 = x.0.is_probably_prime(25, &mut rng.rng);
-        let r2 = x.1.is_probably_prime(25, &mut rng.rng);
-
-        // It doesn't matter if one backend returns `Yes`, and the other returns `Probably`.
-        // It matters to check if one returns `Yes|Probably`, and the other returns `No`
-        matches!((r1, r2), (IsPrime::Yes | IsPrime::Probably, IsPrime::Yes | IsPrime::Probably) | (IsPrime::No, IsPrime::No))
     }
 
     fn from_radix(s: AsciiString) -> bool {

@@ -4,7 +4,6 @@ use alloc::{string::String, vec::Vec};
 
 use rug::Complete;
 
-use super::IsPrime;
 use crate::backend::{InvalidInput, InvalidInputReason};
 
 /// Big integer type used in this crate
@@ -287,35 +286,27 @@ impl Integer {
     }
 
     /// Performs primality test without sieve optimization
-    #[cfg_attr(feature = "backend-num-bigint", allow(dead_code))] // if num-bigint backend is enabled, this function is unused
-    pub(super) fn is_probably_prime_without_sieve(&self) -> IsPrime {
-        self.is_probably_prime_without_sieve_with_reps(25)
-    }
-
-    fn is_probably_prime_without_sieve_with_reps(&self, reps: u32) -> IsPrime {
+    pub(super) fn is_probably_prime_without_sieve(&self) -> bool {
         if self.cmp0().is_le() {
-            return IsPrime::No;
+            return false;
         }
-        let r = self.0.is_probably_prime(reps);
+        // 25 taken same as one used in mpz_nextprime
+        let r = self.0.is_probably_prime(25);
         match r {
-            rug::integer::IsPrime::No => IsPrime::No,
-            rug::integer::IsPrime::Probably => IsPrime::Probably,
-            rug::integer::IsPrime::Yes => IsPrime::Yes,
+            rug::integer::IsPrime::No => false,
+            rug::integer::IsPrime::Probably => true,
+            rug::integer::IsPrime::Yes => true,
         }
     }
 
     /// Performs primality tests agains provided integer
-    pub fn is_probably_prime(&self, reps: u32, _rng: &mut impl rand_core::RngCore) -> IsPrime {
+    pub fn is_probably_prime(&self) -> bool {
         for &small_prime in &crate::utils::small_primes::SMALL_PRIMES {
             if self.mod_u(small_prime) == 0 {
-                return if *self == Integer::from(small_prime) {
-                    IsPrime::Yes
-                } else {
-                    IsPrime::No
-                };
+                return *self == Integer::from(small_prime);
             }
         }
-        self.is_probably_prime_without_sieve_with_reps(reps)
+        self.is_probably_prime_without_sieve()
     }
 
     /// Generates a random prime
@@ -333,10 +324,7 @@ impl Integer {
             x.assign_random_bits(bit_size, rng);
             x.set_bit(bit_size - 1, true);
             x |= 1u32;
-            if matches!(
-                x.is_probably_prime(25, rng),
-                IsPrime::Probably | IsPrime::Yes
-            ) {
+            if x.is_probably_prime() {
                 break Ok(x);
             }
         }
