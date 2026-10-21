@@ -1,3 +1,33 @@
+## v0.4.0
+* Fix divergent behavior on different integer backends. [#49] \
+  Each of the following change is **possibly breaking** even if it doesn't change the API:
+  * `Integer::from_str_radix(s, radix)` requires that `s` is composed of optional leading single
+    sign (`+` or `-`) and followed by ASCII alphanum characters
+    * `num-bigint` backend used to allow underscore characters `_` in integer encoding, which now
+      lead to a parsing error
+    * `rug` backend used to allow whitspace characters (` `, `\t`, `\n`) in integer encoding,
+      which is no longer accepted as well.
+  * `num-bigint` backend used to panic when called `invert`, `pow_mod`, or `combine` with
+    `modulo=0`. Now it returns `None` in these cases (which is aligned with `rug` backend)
+  * `Integer::random_below`, `random_below_ref`, and `assign_random_below` return an error if upper
+    bound is `<= 0` (there are no number to sample the integer from). `rug` used to panicked in
+    those cases, while `num-bigint` ignored this condition, and simply treated the input as if it
+    was positive.
+  * `jacobi` returns an error when invalid `n` is provided. Both backend behaved differently: `rug`
+    used to return some integer, while `num-bigint` used to return `0` in release and panic in debug
+    build.
+  * `num_bigint` integer used to panic in `x << shift` (or `>>`) when the `shift` was negative. Now
+    it reverses the shift direction, like `rug` does: e.g. `x << -3` becomes `x >> 3`
+  * Safe prime generation returns an error if asked to generate a prime of bit length `< 100`, as
+    sampling small primes is not supported by the underlying algorithm. Note that cryptographic
+    primes need to be way larger. E.g. RSA requires primes to be at least 1536-bits.
+  * Prime generation returns an error if asked to generate a prime of bit length `< 2` (there are no
+    primes of that bitsize). Previously, function would panic or hang in infinite loop.
+  * `sample[_pm]_in_mult_group_of` returns an error if provided `n < 2`. Previously, `n=0` would
+    panic or hang (depending on the backend), and `n=1` would hang in infinite loop.
+
+[#49]: https://github.com/LFDT-Lockness/fast-paillier/pull/49
+
 ## v0.3.3
 * Unify encoding of integer=0 across backends [#45]
 * Deserialize returns an error on invalid radix, instead of panicking [#45]

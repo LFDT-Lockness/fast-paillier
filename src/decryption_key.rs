@@ -28,8 +28,8 @@ impl DecryptionKey {
     ///
     /// Samples two safe 1536-bits primes that meets 128 bits security level
     pub fn generate(rng: &mut (impl RngCore + CryptoRng)) -> Result<Self, Error> {
-        let p = Integer::generate_safe_prime(rng, 1536);
-        let q = Integer::generate_safe_prime(rng, 1536);
+        let p = Integer::generate_safe_prime(rng, 1536).map_err(crate::Bug::GenerateSafePrime)?;
+        let q = Integer::generate_safe_prime(rng, 1536).map_err(crate::Bug::GenerateSafePrime)?;
         Self::from_primes(p, q)
     }
 
@@ -106,11 +106,7 @@ impl DecryptionKey {
             return Err(Reason::Encrypt.into());
         }
 
-        let x = if x.cmp0().is_ge() {
-            x.clone()
-        } else {
-            x + self.n()
-        };
+        let x = if x.cmp0().is_ge() { x } else { &(x + self.n()) };
 
         // a = (1 + N)^x mod N^2 = (1 + xN) mod N^2
         let a = (Integer::one() + x * self.ek.n()) % self.ek.nn();
@@ -135,7 +131,8 @@ impl DecryptionKey {
         rng: &mut (impl RngCore + CryptoRng),
         x: &Plaintext,
     ) -> Result<(Ciphertext, Nonce), Error> {
-        let nonce = Integer::sample_in_mult_group_of(rng, self.ek.n());
+        let nonce = Integer::sample_in_mult_group_of(rng, self.ek.n())
+            .map_err(crate::Bug::SampleInMultGroup)?;
         let ciphertext = self.encrypt_with(x, &nonce)?;
         Ok((ciphertext, nonce))
     }

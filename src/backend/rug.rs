@@ -2,8 +2,10 @@
 
 use alloc::{string::String, vec::Vec};
 
-use super::IsPrime;
 use rug::Complete;
+
+use super::IsPrime;
+use crate::backend::{InvalidInput, InvalidInputReason};
 
 /// Big integer type used in this crate
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug)]
@@ -76,6 +78,18 @@ impl Integer {
     }
     /// Parses the integer using the given radix
     pub fn from_str_radix(s: &str, radix: u16) -> Option<Self> {
+        // rug accepts strings that have whitespaces in them, integer is parsed while
+        // ignoring whitespaces, even in the middle of the number. This behavior is
+        // different from num-bigint backend, and it is strange. We manually restrict
+        // strings to be ascii alphanum
+        if !s
+            .chars()
+            .enumerate()
+            .skip_while(|&(i, c)| i == 0 && (c == '+' || c == '-'))
+            .all(|(_, c)| c.is_ascii_alphanumeric())
+        {
+            return None;
+        }
         rug::Integer::from_str_radix(s, radix.into())
             .ok()
             .map(Integer)
@@ -206,13 +220,28 @@ impl Integer {
         self
     }
 
-    pub fn random_below(self, rng: &mut impl rand_core::RngCore) -> Self {
+    /// Generates random integer from range 0..self (exlusive)
+    ///
+    /// Returns an error if `self` is not positive number
+    pub fn random_below(self, rng: &mut impl rand_core::RngCore) -> Result<Self, InvalidInput> {
+        if self.cmp0() != core::cmp::Ordering::Greater {
+            return Err(InvalidInputReason::RandomBelowUpperBound.into());
+        }
         let mut rng = external_rand(rng);
-        Integer(self.0.random_below(&mut rng))
+        Ok(Integer(self.0.random_below(&mut rng)))
     }
-    pub fn random_below_ref(&self, rng: &mut impl rand_core::RngCore) -> Self {
+    /// Generates random integer from range 0..self (exlusive)
+    ///
+    /// Returns an error if `self` is not positive number
+    pub fn random_below_ref(
+        &self,
+        rng: &mut impl rand_core::RngCore,
+    ) -> Result<Self, InvalidInput> {
+        if self.cmp0() != core::cmp::Ordering::Greater {
+            return Err(InvalidInputReason::RandomBelowUpperBound.into());
+        }
         let mut rng = external_rand(rng);
-        Integer(self.0.random_below_ref(&mut rng).complete())
+        Ok(Integer(self.0.random_below_ref(&mut rng).complete()))
     }
     pub fn random_bits(bits: u32, rng: &mut impl rand_core::RngCore) -> Self {
         let mut rng = external_rand(rng);
@@ -229,15 +258,21 @@ impl Integer {
         }
     }
 
+    /// Generates random integer from range 0..modulo (exlusive) and assigns to `self`
+    ///
+    /// Returns an error if modulo is not positive. `self` is not modified in this case.
     pub fn assign_random_below(
         &mut self,
         modulo: &Self,
         rng: &mut impl rand_core::RngCore,
-    ) -> &mut Self {
+    ) -> Result<&mut Self, InvalidInput> {
+        if modulo.cmp0() != core::cmp::Ordering::Greater {
+            return Err(InvalidInputReason::RandomBelowUpperBound.into());
+        }
         let mut rng = external_rand(rng);
         let r = modulo.0.random_below_ref(&mut rng);
         rug::Assign::assign(&mut self.0, r);
-        self
+        Ok(self)
     }
 
     pub fn assign_random_bits(
@@ -284,7 +319,15 @@ impl Integer {
     }
 
     /// Generates a random prime
-    pub fn generate_prime(rng: &mut impl rand_core::RngCore, bit_size: u32) -> Self {
+    ///
+    /// Returns an error if `bit_size < 2` as there are no primes of this bit size.
+    pub fn generate_prime(
+        rng: &mut impl rand_core::RngCore,
+        bit_size: u32,
+    ) -> Result<Self, InvalidInput> {
+        if bit_size < 2 {
+            return Err(InvalidInputReason::PrimeBitSize.into());
+        }
         let mut x = Integer::zero();
         loop {
             x.assign_random_bits(bit_size, rng);
@@ -294,13 +337,20 @@ impl Integer {
                 x.is_probably_prime(25, rng),
                 IsPrime::Probably | IsPrime::Yes
             ) {
-                break x;
+                break Ok(x);
             }
         }
     }
 
-    pub fn jacobi(&self, n: &Self) -> i32 {
-        self.0.jacobi(&n.0)
+    /// Compute jacobi symbol of a over n
+    ///
+    /// Requires odd `n >= 3`. Returns an error if `n` is not in required domain.
+    pub fn jacobi(&self, n: &Self) -> Result<i32, InvalidInput> {
+        if n.0.is_even() || n.0 <= 2 {
+            Err(InvalidInputReason::Jacobi.into())
+        } else {
+            Ok(self.0.jacobi(&n.0))
+        }
     }
 
     /// Compute l^le * r^re modulo self
@@ -344,9 +394,37 @@ impl quickcheck::Arbitrary for Integer {
             if prev.cmp0().is_eq() {
                 None
             } else {
-                prev >>= 1;
+                prev /= 2;
                 Some(prev.clone())
             }
         }))
+    }
+}
+
+// num_bigint have its own implementation of shl/shr, so we have to write manual dummy
+// implementation for rug too, instead of outsourcing it to the macro that handles the rest
+// arithmetic ops
+impl core::ops::Shl<i32> for Integer {
+    type Output = Integer;
+    fn shl(self, rhs: i32) -> Self::Output {
+        Self(self.0 << rhs)
+    }
+}
+impl core::ops::Shr<i32> for Integer {
+    type Output = Integer;
+    fn shr(self, rhs: i32) -> Self::Output {
+        Self(self.0 >> rhs)
+    }
+}
+impl core::ops::Shl<i32> for &Integer {
+    type Output = Integer;
+    fn shl(self, rhs: i32) -> Self::Output {
+        self.clone() << rhs
+    }
+}
+impl core::ops::Shr<i32> for &Integer {
+    type Output = Integer;
+    fn shr(self, rhs: i32) -> Self::Output {
+        self.clone() >> rhs
     }
 }

@@ -30,8 +30,8 @@ fn encryption(c: &mut criterion::Criterion) {
     let mut group = c.benchmark_group("Encrypt");
 
     let mut generate_inputs = || {
-        let x = ek.n().random_below_ref(&mut rng) - ek.half_n();
-        let nonce = Integer::sample_in_mult_group_of(&mut rng, ek.n());
+        let x = ek.n().random_below_ref(&mut rng).unwrap() - ek.half_n();
+        let nonce = Integer::sample_in_mult_group_of(&mut rng, ek.n()).unwrap();
         (x, nonce)
     };
 
@@ -83,7 +83,7 @@ fn decryption(c: &mut criterion::Criterion) {
 
     let mut group = c.benchmark_group("Decrypt");
 
-    let mut generate_inputs = || Integer::sample_in_mult_group_of(&mut rng, ek.nn());
+    let mut generate_inputs = || Integer::sample_in_mult_group_of(&mut rng, ek.nn()).unwrap();
 
     group.bench_function("Decrypt with CRT", |b| {
         b.iter_batched(
@@ -123,8 +123,8 @@ fn omul(c: &mut criterion::Criterion) {
     let mut group = c.benchmark_group("OMul");
 
     let mut generate_inputs = || {
-        let scalar = Integer::sample_pm_in_mult_group_of(&mut rng, ek.n());
-        let enc_x = Integer::sample_in_mult_group_of(&mut rng, ek.nn());
+        let scalar = Integer::sample_pm_in_mult_group_of(&mut rng, ek.n()).unwrap();
+        let enc_x = Integer::sample_in_mult_group_of(&mut rng, ek.nn()).unwrap();
         (scalar, enc_x)
     };
 
@@ -148,7 +148,7 @@ fn omul(c: &mut criterion::Criterion) {
 pub fn naive_safe_prime(rng: &mut impl rand_core::RngCore, bits: u32) -> Integer {
     use fast_paillier::backend::IsPrime;
     loop {
-        let mut x = Integer::generate_prime(rng, bits - 1);
+        let mut x = Integer::generate_prime(rng, bits - 1).unwrap();
         x <<= 1;
         x += 1;
 

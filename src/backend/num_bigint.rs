@@ -2,9 +2,11 @@
 
 use alloc::{string::String, vec::Vec};
 
-use super::IsPrime;
 use num_integer::Integer as _;
 use num_traits::Signed as _;
+
+use super::IsPrime;
+use crate::backend::{InvalidInput, InvalidInputReason};
 
 /// Big integer type used in this crate
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug)]
@@ -75,6 +77,17 @@ impl Integer {
     }
     /// Parses the integer using the given radix
     pub fn from_str_radix(s: &str, radix: u16) -> Option<Self> {
+        // num-bigint already enforces these checks, but we double-enforce them
+        // to make sure they are in sync with what we already enforce for rug.
+        // See RugInteger::from_str_radix
+        if !s
+            .chars()
+            .enumerate()
+            .skip_while(|&(i, c)| i == 0 && (c == '+' || c == '-'))
+            .all(|(_, c)| c.is_ascii_alphanumeric())
+        {
+            return None;
+        }
         num_traits::Num::from_str_radix(s, radix.into())
             .ok()
             .map(Integer)
@@ -145,6 +158,10 @@ impl Integer {
         self.pow_mod_ref(exponent, modulo)
     }
     pub fn pow_mod_ref(&self, exponent: &Self, modulo: &Self) -> Option<Self> {
+        // num-bigint panics if modulo is zero; return `None` instead
+        if modulo.cmp0().is_eq() {
+            return None;
+        }
         let r = if exponent.0.is_negative() {
             let nself = self.0.modinv(&modulo.0)?;
             Integer(nself.modpow(&-&exponent.0, &modulo.0))
@@ -215,6 +232,10 @@ impl Integer {
         self.invert_ref(modulo)
     }
     pub fn invert_ref(&self, modulo: &Self) -> Option<Self> {
+        // When modulo=0, num-bigint panics; we return `None` instead
+        if modulo.cmp0().is_eq() {
+            return None;
+        }
         // Nbi returns wrong result if modulo = 1, and self is negative. Correct response is `0`,
         // but nbi gives `1`.
         if self.cmp0().is_lt() && modulo.is_one() {
@@ -236,26 +257,41 @@ impl Integer {
         self
     }
 
-    pub fn random_below(self, rng: &mut impl rand_core::RngCore) -> Self {
+    /// Generates random integer from range 0..self (exlusive)
+    ///
+    /// Returns an error if `self` is not positive number
+    pub fn random_below(self, rng: &mut impl rand_core::RngCore) -> Result<Self, InvalidInput> {
+        if self.cmp0() != core::cmp::Ordering::Greater {
+            return Err(InvalidInputReason::RandomBelowUpperBound.into());
+        }
         // when the number is a power of two, the randomness generation between
         // rug and nbi differs, and rug uses exactly the same as random_bits
         let bits = self.0.bits() - 1;
-        if self.0.trailing_zeros() == Some(bits) {
+        Ok(if self.0.trailing_zeros() == Some(bits) {
             Self::random_bits_u64(bits, rng)
         } else {
             let range = num_traits::ConstZero::ZERO..self.0;
             Integer(rand::Rng::gen_range(rng, range))
-        }
+        })
     }
-    pub fn random_below_ref(&self, rng: &mut impl rand_core::RngCore) -> Self {
+    /// Generates random integer from range 0..self (exlusive)
+    ///
+    /// Returns an error if `self` is not positive number
+    pub fn random_below_ref(
+        &self,
+        rng: &mut impl rand_core::RngCore,
+    ) -> Result<Self, InvalidInput> {
+        if self.cmp0() != core::cmp::Ordering::Greater {
+            return Err(InvalidInputReason::RandomBelowUpperBound.into());
+        }
         // see the note in random_below
         let bits = self.0.bits() - 1;
-        if self.0.trailing_zeros() == Some(bits) {
+        Ok(if self.0.trailing_zeros() == Some(bits) {
             Self::random_bits_u64(bits, rng)
         } else {
             let range = num_traits::ConstZero::ZERO..self.0.clone();
             Integer(rand::Rng::gen_range(rng, range))
-        }
+        })
     }
     pub fn random_bits(bits: u32, rng: &mut impl rand_core::RngCore) -> Self {
         Self::random_bits_u64(bits.into(), rng)
@@ -280,13 +316,16 @@ impl Integer {
         Integer(num_bigint::BigInt::from_biguint(sign, uint))
     }
 
+    /// Generates random integer from range 0..modulo (exlusive) and assigns to `self`
+    ///
+    /// Returns an error if modulo is not positive. `self` is not modified in this case.
     pub fn assign_random_below(
         &mut self,
         modulo: &Self,
         rng: &mut impl rand_core::RngCore,
-    ) -> &mut Self {
-        *self = modulo.random_below_ref(rng);
-        self
+    ) -> Result<&mut Self, InvalidInput> {
+        *self = modulo.random_below_ref(rng)?;
+        Ok(self)
     }
 
     pub fn assign_random_bits(
@@ -335,7 +374,15 @@ impl Integer {
     }
 
     /// Generates a random prime
-    pub fn generate_prime(rng: &mut impl rand_core::RngCore, bit_size: u32) -> Self {
+    ///
+    /// Returns an error if `bit_size < 2` as there are no primes of this bit size.
+    pub fn generate_prime(
+        rng: &mut impl rand_core::RngCore,
+        bit_size: u32,
+    ) -> Result<Self, InvalidInput> {
+        if bit_size < 2 {
+            return Err(InvalidInputReason::PrimeBitSize.into());
+        }
         let mut x = Integer::zero();
         loop {
             x.assign_random_bits(bit_size, rng);
@@ -345,28 +392,27 @@ impl Integer {
                 x.is_probably_prime(0, rng),
                 IsPrime::Probably | IsPrime::Yes
             ) {
-                break x;
+                break Ok(x);
             }
         }
     }
 
     /// Compute jacobi symbol of a over n
     ///
-    /// Requires odd `n >= 3`. If it doesn't hold, function
-    /// panics if debug asserts are enabled, or returns 0 otherwise.
+    /// Requires odd `n >= 3`. Returns an error if `n` is not in required domain.
     ///
     /// Implementation is taken from [Handbook of Applied cryptography][book],
     /// p. 73, Algorithm 2.149
     ///
     /// [book]: https://cacr.uwaterloo.ca/hac/about/chap2.pdf
     #[inline(always)]
-    pub fn jacobi(&self, n: &Self) -> i32 {
+    pub fn jacobi(&self, n: &Self) -> Result<i32, InvalidInput> {
         if n.0.is_even() || n.0 <= num_bigint::BigInt::from(2) {
-            debug_assert!(false, "n should be an odd number larger than 2");
-            return 0;
+            Err(InvalidInputReason::Jacobi.into())
+        } else {
+            let a = self.modulo_ref(n);
+            Ok(jacobi_inner(1, &a.0, &n.0))
         }
-        let a = self.modulo_ref(n);
-        jacobi_inner(1, &a.0, &n.0)
     }
 
     /// Compute l^le * r^re modulo self
@@ -437,6 +483,50 @@ fn last_limb(x: &num_bigint::BigInt) -> u32 {
     x.magnitude().iter_u32_digits().next().unwrap_or(0)
 }
 
+// num-bigint panics if `<<` or `>>` are called with negative value of i32.
+// rug just reverses the direction: (x << -n) == (x >> n).
+// We manually reproduce rug's behavior.
+impl core::ops::Shl<i32> for Integer {
+    type Output = Integer;
+    fn shl(self, rhs: i32) -> Self::Output {
+        if rhs >= 0 {
+            Self(self.0 << rhs)
+        } else if rhs == i32::MIN {
+            // `-rhs` would overflow i32 here
+            // i32::MIN = -(i32::MAX + 1)
+            Self(self.0 >> i32::MAX >> 1)
+        } else {
+            Self(self.0 >> (-rhs))
+        }
+    }
+}
+impl core::ops::Shr<i32> for Integer {
+    type Output = Integer;
+    fn shr(self, rhs: i32) -> Self::Output {
+        if rhs >= 0 {
+            Self(self.0 >> rhs)
+        } else if rhs == i32::MIN {
+            // `-rhs` would overflow i32 here
+            // i32::MIN = -(i32::MAX + 1)
+            Self(self.0 << i32::MAX << 1)
+        } else {
+            Self(self.0 << (-rhs))
+        }
+    }
+}
+impl core::ops::Shl<i32> for &Integer {
+    type Output = Integer;
+    fn shl(self, rhs: i32) -> Self::Output {
+        self.clone() << rhs
+    }
+}
+impl core::ops::Shr<i32> for &Integer {
+    type Output = Integer;
+    fn shr(self, rhs: i32) -> Self::Output {
+        self.clone() >> rhs
+    }
+}
+
 #[cfg(feature = "quickcheck")]
 impl quickcheck::Arbitrary for Integer {
     fn arbitrary(g: &mut quickcheck::Gen) -> Self {
@@ -451,7 +541,7 @@ impl quickcheck::Arbitrary for Integer {
             if prev.cmp0().is_eq() {
                 None
             } else {
-                prev >>= 1;
+                prev /= 2;
                 Some(prev.clone())
             }
         }))
@@ -499,13 +589,13 @@ mod test {
         let n = &p * &q;
 
         for _ in 0..100 {
-            let x = n.random_below_ref(&mut rng);
+            let x = n.random_below_ref(&mut rng).unwrap();
             let root = blum_sqrt(&x, &p, &q, &n);
             let x_ = root.square().modulo(&n);
 
-            let jp = x.modulo_ref(&p).jacobi(&p);
-            let jq = x.modulo_ref(&q).jacobi(&q);
-            let j = x.jacobi(&n);
+            let jp = x.modulo_ref(&p).jacobi(&p).unwrap();
+            let jq = x.modulo_ref(&q).jacobi(&q).unwrap();
+            let j = x.jacobi(&n).unwrap();
             assert_eq!(jp * jq, j);
 
             if jp == 1 && jq == 1 {

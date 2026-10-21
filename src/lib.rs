@@ -74,6 +74,10 @@ enum Reason {
 enum Bug {
     #[error("pow mod undefined")]
     PowModUndef,
+    #[error("sample_in_mult_group_of: {0}")]
+    SampleInMultGroup(backend::InvalidInput),
+    #[error("generate_safe_prime: {0}")]
+    GenerateSafePrime(backend::InvalidInput),
 }
 
 impl From<Bug> for Error {
@@ -171,7 +175,8 @@ impl<E: AnyEncryptionKey> AnyEncryptionKeyExt for E {
         rng: &mut (impl RngCore + CryptoRng),
         x: &Plaintext,
     ) -> Result<(Ciphertext, Nonce), Error> {
-        let nonce = Integer::sample_in_mult_group_of(rng, self.n());
+        let nonce =
+            Integer::sample_in_mult_group_of(rng, self.n()).map_err(Bug::SampleInMultGroup)?;
         let ciphertext = self.encrypt_with(x, &nonce)?;
         Ok((ciphertext, nonce))
     }

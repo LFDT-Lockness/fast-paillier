@@ -73,34 +73,56 @@ impl Integer {
     }
 
     /// Samples `x` in Z*_n
-    pub fn sample_in_mult_group_of(rng: &mut impl rand_core::RngCore, n: &Self) -> Self {
+    ///
+    /// Returns an error if `n <= 1`.
+    pub fn sample_in_mult_group_of(
+        rng: &mut impl rand_core::RngCore,
+        n: &Self,
+    ) -> Result<Self, InvalidInput> {
+        if *n <= Integer::one() {
+            return Err(InvalidInputReason::SampleInMultGroupSize.into());
+        }
         let mut x = Integer::zero();
         loop {
-            x.assign_random_below(n, rng);
+            x.assign_random_below(n, rng)?;
             if x.in_mult_group_of(n) {
-                return x;
+                return Ok(x);
             }
         }
     }
 
     /// Samples `x` such that abs(x) is in `Z*_n`
-    pub fn sample_pm_in_mult_group_of(rng: &mut impl rand_core::RngCore, n: &Self) -> Self {
+    ///
+    /// Returns an error if `n <= 1`.
+    pub fn sample_pm_in_mult_group_of(
+        rng: &mut impl rand_core::RngCore,
+        n: &Self,
+    ) -> Result<Self, InvalidInput> {
+        if *n <= Integer::one() {
+            return Err(InvalidInputReason::SampleInMultGroupSize.into());
+        }
         let mut x = Integer::zero();
         let mut sign_buf = [0u8; 1];
         loop {
-            x.assign_random_below(n, rng);
+            x.assign_random_below(n, rng)?;
             rng.fill_bytes(&mut sign_buf);
             if sign_buf[0] & 1 == 1 {
                 x = -x;
             }
             if x.abs_in_mult_group_of(n) {
-                return x;
+                return Ok(x);
             }
         }
     }
 
     /// Generates a random safe prime
-    pub fn generate_safe_prime(rng: &mut impl rand_core::RngCore, bits: u32) -> Self {
+    ///
+    /// Returns an error if `bits < 100`. Note that cryptographic primes need to be way larger.
+    /// E.g. RSA requires primes to be at least 1536-bits.
+    pub fn generate_safe_prime(
+        rng: &mut impl rand_core::RngCore,
+        bits: u32,
+    ) -> Result<Self, InvalidInput> {
         sieve_generate_safe_primes(rng, bits, 135)
     }
 }
@@ -112,13 +134,23 @@ impl Integer {
 /// The best way to select the parameter is by trial. The one used by
 /// [`generate_safe_prime`] is indistinguishable from optimal for 500-1700 bit
 /// lengths.
+///
+/// Returns an error if `bits < 100`. Note that cryptographic primes need to be way larger.
+/// E.g. RSA requires primes to be at least 1536-bits.
 pub fn sieve_generate_safe_primes(
     rng: &mut impl rand_core::RngCore,
     bits: u32,
     amount: usize,
-) -> Integer {
+) -> Result<Integer, InvalidInput> {
     use crate::backend::IsPrime;
     use crate::utils::small_primes;
+
+    // sieve optimization, the way it is written, rejects valid safe primes of small bitsize.
+    // The fix would be to use subset of `small_primes` for small `bits`, but we never want
+    // to generate small safe primes, so no point in complicating the code.
+    if bits < 100 {
+        return Err(InvalidInputReason::SafePrimeBitSize.into());
+    }
 
     let amount = amount.min(small_primes::SMALL_PRIMES.len());
     let mut x = Integer::zero();
@@ -143,7 +175,7 @@ pub fn sieve_generate_safe_primes(
             x <<= 1;
             x += 1;
             if let IsPrime::Yes | IsPrime::Probably = x.is_probably_prime_without_sieve() {
-                return x;
+                return Ok(x);
             }
         }
     }
@@ -320,6 +352,29 @@ mod serialize {
     }
 }
 
+/// Error returned by methods on integer when provided inputs are not acceptable
+#[derive(Debug, thiserror::Error)]
+#[error("invalid input: {0}")]
+pub struct InvalidInput(#[from] InvalidInputReason);
+
+#[derive(Debug, thiserror::Error)]
+enum InvalidInputReason {
+    #[error("random_below: upper bound must be positive")]
+    RandomBelowUpperBound,
+    #[error("jacobi: `n` must be an odd number larger than 2")]
+    Jacobi,
+    #[error(
+        "generate_safe_prime algorithm can only generate primes from 100 bits; note that \
+        cryptographic primes need to be way larger. E.g. RSA requires primes to be at least \
+        1536-bits."
+    )]
+    SafePrimeBitSize,
+    #[error("generate_prime was called with `bit_size < 2`, there are no primes of this bit size")]
+    PrimeBitSize,
+    #[error("sample_in_[pm_]mult_group: `n` must be at least 2")]
+    SampleInMultGroupSize,
+}
+
 #[cfg(test)]
 mod test {
     use super::Integer;
@@ -328,10 +383,8 @@ mod test {
     fn safe_prime_size() {
         let mut rng = rand_dev::DevRng::new();
         for size in [500, 512, 513, 514] {
-            let mut prime = Integer::generate_safe_prime(&mut rng, size);
-            // rug doesn't have bit length operations, so
-            prime >>= size - 1;
-            assert_eq!(prime, Integer::one());
+            let prime = Integer::generate_safe_prime(&mut rng, size).unwrap();
+            assert_eq!(prime.significant_bits(), size as u64);
         }
     }
 

@@ -16,9 +16,9 @@ pub struct EncryptionKey {
 impl EncryptionKey {
     /// Constructs an encryption key from `N`
     pub fn from_n(n: Integer) -> Self {
-        let nn = n.clone() * &n;
-        let half_n = n.clone() >> 1u32;
-        let neg_half_n = -half_n.clone();
+        let nn = &n * &n;
+        let half_n = &n >> 1u32;
+        let neg_half_n = -&half_n;
         Self {
             n,
             nn,
@@ -63,14 +63,10 @@ impl EncryptionKey {
             return Err(Reason::Encrypt.into());
         }
 
-        let x = if x.cmp0().is_ge() {
-            x.clone()
-        } else {
-            x + self.n()
-        };
+        let x = if x.cmp0().is_ge() { x } else { &(x + self.n()) };
 
         // a = (1 + N)^x mod N^2 = (1 + xN) mod N^2
-        let a = (Integer::one() + &x * self.n()) % self.nn();
+        let a = (Integer::one() + x * self.n()) % self.nn();
         // b = nonce^N mod N^2
         let b = nonce
             .pow_mod_ref(self.n(), self.nn())
@@ -90,7 +86,8 @@ impl EncryptionKey {
         rng: &mut (impl RngCore + CryptoRng),
         x: &Plaintext,
     ) -> Result<(Ciphertext, Nonce), Error> {
-        let nonce = Integer::sample_in_mult_group_of(rng, self.n());
+        let nonce = Integer::sample_in_mult_group_of(rng, self.n())
+            .map_err(crate::Bug::SampleInMultGroup)?;
         let ciphertext = self.encrypt_with(x, &nonce)?;
         Ok((ciphertext, nonce))
     }
