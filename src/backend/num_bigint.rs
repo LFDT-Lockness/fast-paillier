@@ -347,13 +347,8 @@ impl Integer {
 
         if self.cmp0().is_le() {
             false
-        } else if crypto_primes::is_prime(
-            crypto_primes::Flavor::Any,
-            &boxed_uint(self.0.magnitude()),
-        ) {
-            true
         } else {
-            false
+            crypto_primes::is_prime(crypto_primes::Flavor::Any, &boxed_uint(self.0.magnitude()))
         }
     }
 
@@ -361,11 +356,7 @@ impl Integer {
     pub fn is_probably_prime(&self) -> bool {
         for &small_prime in &crate::utils::small_primes::SMALL_PRIMES {
             if self.mod_u(small_prime) == 0 {
-                return if *self == Integer::from(small_prime) {
-                    true
-                } else {
-                    false
-                };
+                return *self == Integer::from(small_prime);
             }
         }
         self.is_probably_prime_without_sieve()

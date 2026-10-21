@@ -303,11 +303,7 @@ impl Integer {
     pub fn is_probably_prime(&self) -> bool {
         for &small_prime in &crate::utils::small_primes::SMALL_PRIMES {
             if self.mod_u(small_prime) == 0 {
-                return if *self == Integer::from(small_prime) {
-                    true
-                } else {
-                    false
-                };
+                return *self == Integer::from(small_prime);
             }
         }
         self.is_probably_prime_without_sieve()
