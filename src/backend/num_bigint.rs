@@ -5,7 +5,6 @@ use alloc::{string::String, vec::Vec};
 use num_integer::Integer as _;
 use num_traits::Signed as _;
 
-use super::IsPrime;
 use crate::backend::{InvalidInput, InvalidInputReason};
 
 /// Big integer type used in this crate
@@ -338,7 +337,7 @@ impl Integer {
     }
 
     /// Performs primality test without sieve optimization
-    pub(super) fn is_probably_prime_without_sieve(&self) -> IsPrime {
+    pub(super) fn is_probably_prime_without_sieve(&self) -> bool {
         fn boxed_uint(n: &num_bigint::BigUint) -> crypto_bigint::BoxedUint {
             crypto_bigint::cpubits! {
                 16 | 32 => { crypto_bigint::BoxedUint::from_words(n.iter_u32_digits()) }
@@ -347,26 +346,25 @@ impl Integer {
         }
 
         if self.cmp0().is_le() {
-            IsPrime::No
+            false
         } else if crypto_primes::is_prime(
             crypto_primes::Flavor::Any,
             &boxed_uint(self.0.magnitude()),
         ) {
-            IsPrime::Probably
+            true
         } else {
-            IsPrime::No
+            false
         }
     }
 
     /// Performs primality tests agains provided integer
-    // TODO neither reps nor rng are used here, maybe we should get rid of them
-    pub fn is_probably_prime(&self, _reps: u32, _rng: &mut impl rand_core::RngCore) -> IsPrime {
+    pub fn is_probably_prime(&self) -> bool {
         for &small_prime in &crate::utils::small_primes::SMALL_PRIMES {
             if self.mod_u(small_prime) == 0 {
                 return if *self == Integer::from(small_prime) {
-                    IsPrime::Yes
+                    true
                 } else {
-                    IsPrime::No
+                    false
                 };
             }
         }
@@ -388,10 +386,7 @@ impl Integer {
             x.assign_random_bits(bit_size, rng);
             x.set_bit(bit_size - 1, true);
             x |= 1u32;
-            if matches!(
-                x.is_probably_prime(0, rng),
-                IsPrime::Probably | IsPrime::Yes
-            ) {
+            if x.is_probably_prime() {
                 break Ok(x);
             }
         }
@@ -556,8 +551,7 @@ mod test {
         for _ in 0..4096 {
             let mut r = Integer::random_bits(len, rng);
             r.set_bit(0, true);
-            if r.is_probably_prime(25, rng) != super::IsPrime::No && super::last_limb(&r.0) % 4 == 3
-            {
+            if r.is_probably_prime() && super::last_limb(&r.0) % 4 == 3 {
                 return r;
             }
         }

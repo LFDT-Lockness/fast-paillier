@@ -142,7 +142,6 @@ pub fn sieve_generate_safe_primes(
     bits: u32,
     amount: usize,
 ) -> Result<Integer, InvalidInput> {
-    use crate::backend::IsPrime;
     use crate::utils::small_primes;
 
     // sieve optimization, the way it is written, rejects valid safe primes of small bitsize.
@@ -170,11 +169,10 @@ pub fn sieve_generate_safe_primes(
             }
         }
 
-        // 25 taken same as one used in mpz_nextprime
-        if let IsPrime::Yes | IsPrime::Probably = x.is_probably_prime_without_sieve() {
+        if x.is_probably_prime_without_sieve() {
             x <<= 1;
             x += 1;
-            if let IsPrime::Yes | IsPrime::Probably = x.is_probably_prime_without_sieve() {
+            if x.is_probably_prime_without_sieve() {
                 return Ok(x);
             }
         }
