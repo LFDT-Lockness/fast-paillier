@@ -25,8 +25,10 @@
     primes of that bitsize). Previously, function would panic or hang in infinite loop.
   * `sample[_pm]_in_mult_group_of` returns an error if provided `n < 2`. Previously, `n=0` would
     panic or hang (depending on the backend), and `n=1` would hang in infinite loop.
+* `Integer::is_probably_prime` does not accept anymore nor PRNG nor `reps` args [#50]
 
 [#49]: https://github.com/LFDT-Lockness/fast-paillier/pull/49
+[#50]: https://github.com/LFDT-Lockness/fast-paillier/pull/50
 
 ## v0.3.3
 * Unify encoding of integer=0 across backends [#45]
